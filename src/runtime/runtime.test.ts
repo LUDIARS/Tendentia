@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import Database from 'better-sqlite3';
+import { AccessGate } from './access-gate.js';
 import { makeApp } from './app.js';
 import { readRuntimeConfig } from './config.js';
 import { ensureSchema } from './db.js';
@@ -33,13 +34,14 @@ test('health と画面を返す', async () => {
     writeFileSync(join(dir, 'web', 'index.html'), '<!doctype html><title>Tendentia</title>');
     const db = new Database(':memory:');
     ensureSchema(db);
-    const app = makeApp({ db, webDir: join(dir, 'web'), version: '0.1.0' });
+    const local = new AccessGate({ entrance: { origin: null, hosts: [] }, sameMachine: () => true });
+    const app = makeApp({ db, webDir: join(dir, 'web'), version: '0.1.0', gate: local });
     const health = await app.request('http://127.0.0.1/health');
     assert.deepEqual(await health.json(), { ok: true, service: 'tendentia', version: '0.1.0' });
     const page = await app.request('http://127.0.0.1/');
     assert.equal(page.status, 200);
     assert.match(await page.text(), /Tendentia/);
-    const missing = makeApp({ db, webDir: join(dir, 'none'), version: '0.1.0' });
+    const missing = makeApp({ db, webDir: join(dir, 'none'), version: '0.1.0', gate: local });
     assert.equal((await missing.request('http://127.0.0.1/style.css')).status, 503);
   } finally {
     rmSync(dir, { recursive: true, force: true });

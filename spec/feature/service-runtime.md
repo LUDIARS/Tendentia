@@ -12,6 +12,8 @@ Tendentia は設定の読み込み・データの用意・HTTP の入口・定�
 - `src/runtime/db.ts`: `data/tendentia.db` を開き、`app_settings` とトレンドの表を用意する (WAL)。
 - `src/runtime/app.ts`: Hono アプリ。`GET /health`、`/api/trend-crawler/*`、画面の配信。
 - `src/runtime/static.ts`: `dist/web` の決まったファイル (index.html / app.js / style.css) だけを返す。
+- `src/runtime/access-gate.ts`: 入口の判定 (同じ端末 / 公開 URL + Cloudflare Access / それ以外は拒否)。
+- `src/runtime/cf-access.ts` / `cf-jwt.ts`: Cloudflare Access の JWT 検証 (依存なし、Elegantia の実装が土台)。
 - `src/runtime/local-request.ts`: API を同じ端末からのリクエストだけに絞る判定 (Memoria から移した)。
 - `src/shared/public-*.ts`: SSRF ガード付きの公開 URL 取得 (Memoria から移した)。
 - `scripts/build.mjs`: esbuild で `dist/server.js` と `dist/web/` を作る (依存パッケージは束ねない)。
@@ -23,9 +25,27 @@ Tendentia は設定の読み込み・データの用意・HTTP の入口・定�
 |---|---|---|
 | `TENDENTIA_PORT` | 待受ポート。正本は `excubitor.catalog.yaml` (4450) | なし (必須) |
 | `TENDENTIA_HOST` | 待受アドレス | `127.0.0.1` |
+| `TENDENTIA_PUBLIC_URL` | 公開 URL (https の Origin)。catalog が `https://tendentia${DOMAIN_ROOT}` を渡す | なし (公開しない) |
+| `LUDIARS_ALLOWED_HOSTS` | 公開として受け付ける追加の Host (Excubitor の global env) | なし |
+| `TENDENTIA_CF_ACCESS_TEAM_DOMAIN` / `TENDENTIA_CF_ACCESS_AUD` | Access の設定を明示するとき (2 つ組)。無ければ `EXCUBITOR_SERVICE_CONFIG_JSON` の `cloudflareAccess` | なし |
 | `TENDENTIA_DATA_DIR` | DB の置き場所 (相対ならリポジトリ直下から) | `data` |
 
 常駐は `npm run build` 後の `node dist/server.js`。tsx は常駐させない。
+
+## 公開の入口
+
+外 (スマホなど) からは Cloudflare Tunnel 経由の公開 URL で開く。Tunnel の route は Access JWT 必須で、
+アプリ側でも次の順で判定する (health は誰でも見られる)。
+
+1. 同じ端末 (接続元が自分、Host が自分の名前・アドレス、Origin が一致) → 通す。
+2. Host が公開 URL / `LUDIARS_ALLOWED_HOSTS` に一致 →
+   - Access の設定 (team / AUD) が無ければ 503 (認証を外して公開しない)。
+   - `Cf-Access-Jwt-Assertion` を Access チームの公開鍵 (RS256) で検証し、iss・aud・exp・nbf を確かめる。だめなら 403。
+   - Origin が付いていて公開 URL と違えば 403 (別サイトからの書き込みを防ぐ)。
+3. それ以外 → 403。
+
+Access の team / AUD は `cf:access-app` (Castra command-runner) が Excubitor の runtime-config に書き、
+Excubitor が `EXCUBITOR_SERVICE_CONFIG_JSON` で渡す。
 
 ## 制約
 

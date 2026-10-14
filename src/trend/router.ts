@@ -1,6 +1,13 @@
 import type BetterSqlite3 from 'better-sqlite3';
 import { Hono, type Context } from 'hono';
 import { isSameMachineRequest } from '../runtime/local-request.js';
+
+/** 要求を通すかどうか。 既定は同じ端末だけ (公開の入口は src/runtime/access-gate.ts が判定を差し替える)。 */
+export type TrendAuthorize = (context: Context) => Promise<{ ok: true } | { ok: false; status: 403 | 503; reason: string }>;
+
+const sameMachineOnly: TrendAuthorize = async (context) => (isSameMachineRequest(context)
+  ? { ok: true }
+  : { ok: false, status: 403, reason: 'same-machine access required' });
 import {
   findTrendSource,
   getTrendCrawlerConfig,
@@ -23,6 +30,7 @@ export interface TrendCrawlerRouterDeps {
   overview?: (db: Db) => TrendOverview;
   map?: (db: Db) => TrendMap;
   coordinator?: TrendCrawlCoordinator;
+  authorize?: TrendAuthorize;
 }
 
 export function makeTrendCrawlerRouter(deps: TrendCrawlerRouterDeps): Hono {
@@ -30,11 +38,13 @@ export function makeTrendCrawlerRouter(deps: TrendCrawlerRouterDeps): Hono {
   const crawl = deps.crawl ?? ((db: Db, onlySourceId?: string) => crawlTrends(db, new Date(), {}, onlySourceId));
   const overview = deps.overview ?? ((db: Db) => buildTrendOverview(db, getTrendCrawlerConfig(db)));
   const coordinator = deps.coordinator ?? trendCrawlCoordinator;
+  const authorize = deps.authorize ?? sameMachineOnly;
   const map = deps.map ?? ((db: Db) => buildTrendMap(overview(db), getInterestPrefs(db), clickStats(db)));
 
   router.use('/api/trend-crawler/*', async (context, next) => {
     context.header('Cache-Control', 'no-store');
-    if (!isSameMachineRequest(context)) return context.json({ error: 'same-machine access required' }, 403);
+    const decision = await authorize(context);
+    if (!decision.ok) return context.json({ error: decision.reason }, decision.status);
     await next();
   });
 

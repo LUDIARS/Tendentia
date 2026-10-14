@@ -1,6 +1,6 @@
 {
   "name": "service-runtime",
-  "description": "Tendentia の常駐サービスの土台。環境変数からの起動設定、SQLite の用意、HTTP の入口 (health・API・画面の配信)、同一端末判定、SSRF ガード付きの公開取得、ビルドと画面の外枠を所有する。LLM は使わない。",
+  "description": "Tendentia の常駐サービスの土台。環境変数からの起動設定、SQLite の用意、HTTP の入口 (health・API・画面の配信)、入口の判定 (同一端末 / 公開 URL + Cloudflare Access の JWT 検証)、SSRF ガード付きの公開取得、ビルドと画面の外枠を所有する。LLM は使わない。",
   "role": "semantic",
   "presetRules": [],
   "templateRules": [],
@@ -37,6 +37,7 @@
     "spec/feature/service-runtime.md#目的",
     "spec/feature/service-runtime.md#構成",
     "spec/feature/service-runtime.md#起動設定",
+    "spec/feature/service-runtime.md#公開の入口",
     "spec/feature/service-runtime.md#制約"
   ]
 }

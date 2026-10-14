@@ -2,7 +2,10 @@
 #
 # ポート番号の正本はここだけ (コードには既定値を持たない)。起動・停止は Excubitor 経由で、
 # 本体 checkout (${ARS_ROOT}/Tendentia) からだけ行う。worktree からは起動しない。
-# 画面と API は同じ端末からだけ使う (127.0.0.1 で待ち受け、API は同一端末判定で守る)。
+# 待ち受けは 127.0.0.1。同じ端末からは今まで通り使え、外からは公開 URL (Cloudflare Tunnel) 経由で開く。
+# 公開 URL への要求は Cloudflare Access の JWT が正しいときだけ通す。team / AUD は Excubitor の runtime-config
+# (EXCUBITOR_SERVICE_CONFIG_JSON の cloudflareAccess) から受け取り、未設定なら公開 URL への要求は 503。
+# 公開 Host は Ex の global.env.LUDIARS_ALLOWED_HOSTS も受け取る (ここで上書きしない)。
 # LLM は使わない。
 services:
   - code: tendentia
@@ -10,6 +13,7 @@ services:
     viewer:
       enabled: true
       entry_path: /
+    frontend_url: &tendentia_public_url https://tendentia${DOMAIN_ROOT}
     tier: personal
     project_code: Td
     component: backend
@@ -32,9 +36,13 @@ services:
       grace_period_sec: 15
     provides:
       TENDENTIA_URL: http://127.0.0.1:${port}
+      # Memoria などが「Tendentia で開く」に使う公開 URL。
+      TENDENTIA_PUBLIC_URL: *tendentia_public_url
     env:
       NODE_ENV: production
       TENDENTIA_HOST: 127.0.0.1
       TENDENTIA_PORT: "4450"
+      # 公開 URL (https の Origin)。この Host への要求だけを公開の入口として扱う。
+      TENDENTIA_PUBLIC_URL: *tendentia_public_url
       # 巡回の履歴・興味の設定・開いた記録 (tendentia.db)。data/ は .gitignore 済み。
       TENDENTIA_DATA_DIR: ${ARS_ROOT}/Tendentia/data
