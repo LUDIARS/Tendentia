@@ -6,7 +6,7 @@
 
 import { genreHue, type TrendGenre } from './genres.ts';
 import { escapeHtml } from './sanitize.ts';
-import { groupByGenre, tileWeight, treemapHeight, type GenreBlock, type TreemapGenre, type TreemapTile } from './treemap-blocks.ts';
+import { groupByGenre, tileWeight, treemapHeight, wordStyle, type GenreBlock, type TreemapGenre, type TreemapTile } from './treemap-blocks.ts';
 import { squarify, squarifyReadable, wordsThatFit, type Rect } from './treemap-layout.ts';
 
 export interface TreemapOptions {
@@ -25,7 +25,6 @@ const MIN_WORD_AREA = 2400;
 /** ワードの四角の最小の幅・高さ (px)。 これより細くなるなら並べる数を減らす。 */
 const MIN_WORD_WIDTH = 56;
 const MIN_WORD_HEIGHT = 30;
-const FONT_SIZE = 12;
 const LINE_HEIGHT = 1.3;
 /** これより細いブロックでは「ほか n 件」を「+n」に縮める (ジャンル名を潰さないように)。 */
 const NARROW_BLOCK = 140;
@@ -41,13 +40,14 @@ function px(rect: Rect): string {
 
 function wordHtml(entry: { tile: TreemapTile; index: number }, rect: Rect): string {
   const { tile } = entry;
-  // 四角の高さに入る行数だけ見せる (途中で切れた行を出さない)。 広い四角ほど少し大きな字にする。
-  const size = rect.width * rect.height > 14_000 ? FONT_SIZE + 2 : FONT_SIZE;
-  const lines = Math.max(1, Math.floor((rect.height - 6) / (size * LINE_HEIGHT)));
+  // 広い四角ほど大きな字、 注目度が高いものは濃い背景に白い太字 (treemap-blocks.ts の wordStyle)。
+  // 四角の高さに入る行数だけ見せる (途中で切れた行を出さない)。
+  const look = wordStyle(rect.width * rect.height, tile.interest);
+  const lines = Math.max(1, Math.floor((rect.height - 6) / (look.fontSize * LINE_HEIGHT)));
   const title = `${tile.title}\n${tile.sourceName} ${tile.rank}位 / 興味 ${Math.round(tile.interest * 100)}%`;
-  const style = `${px(rect)};font-size:${size}px;--tt-lines:${lines};--tm-l:${Math.round(88 - 30 * Math.min(1, tile.interest))}%`;
+  const style = `${px(rect)};font-size:${look.fontSize}px;--tt-lines:${lines};--tm-l:${look.lightness}%`;
   const inner = `<span class="tt-word-title">${escapeHtml(tile.title)}</span>`;
-  const attrs = `class="tt-word" style="${style}" title="${escapeHtml(title)}" data-index="${entry.index}"`;
+  const attrs = `class="tt-word${look.hot ? ' tt-word-hot' : ''}" style="${style}" title="${escapeHtml(title)}" data-index="${entry.index}"`;
   return tile.url
     ? `<a ${attrs} href="${escapeHtml(tile.url)}" target="_blank" rel="noopener noreferrer">${inner}</a>`
     : `<div ${attrs}>${inner}</div>`;

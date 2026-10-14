@@ -70,3 +70,25 @@ const UNIT_AREA = 10_000;
 export function treemapHeight(width: number, totalWeight: number): number {
   return Math.round(Math.min(width * 6, Math.max(Math.min(width * 1.2, 640), (totalWeight * UNIT_AREA) / width)));
 }
+
+/** これ以上の興味のワードは濃い背景に白い字で目立たせる。 */
+export const HOT_INTEREST = 0.8;
+
+export interface WordStyle {
+  fontSize: number;
+  /** 濃い背景 + 白い字 (注目度が高い)。 */
+  hot: boolean;
+  /** 背景の明るさ (%)。 hot は濃く、 それ以外は薄い背景に濃い字。 */
+  lightness: number;
+}
+
+/**
+ * ワードの字の大きさと強調 (2026-10-14 neco「文字をもうちょっと強調表示して見やすく」)。
+ * 広い四角ほど大きな字 (12〜17px の 4 段)、 注目度が高いものは濃い背景に白い太字。
+ */
+export function wordStyle(area: number, interest: number): WordStyle {
+  const fontSize = area >= 24_000 ? 17 : area >= 12_000 ? 15 : area >= 6_000 ? 13 : 12;
+  const level = clamp01(interest);
+  const hot = level >= HOT_INTEREST;
+  return { fontSize, hot, lightness: hot ? Math.round(44 - 12 * (level - HOT_INTEREST) / (1 - HOT_INTEREST)) : Math.round(92 - 14 * level) };
+}

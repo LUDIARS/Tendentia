@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { squarify, squarifyReadable, wordsThatFit } from '../src/treemap-layout.ts';
-import { groupByGenre, tileWeight, treemapHeight, type TreemapTile } from '../src/treemap-blocks.ts';
+import { groupByGenre, tileWeight, treemapHeight, wordStyle, type TreemapTile } from '../src/treemap-blocks.ts';
 
 const frame = { x: 0, y: 0, width: 360, height: 600 };
 
@@ -94,4 +94,15 @@ test('細すぎる四角ができるなら並べる数を減らし、 少なく�
   assert.ok(placed.length >= 1 && placed.length < 4);
   assert.ok(placed.every((cell) => cell.width >= 40 && cell.height >= 30) || placed.length === 1);
   assert.equal(squarifyReadable(weights, (w) => w, { x: 0, y: 0, width: 10, height: 10 }, 4, 40, 30).length, 1);
+});
+
+test('文字の強調: 広い四角ほど大きな字、 注目度が高いものは濃い背景に白い字', () => {
+  assert.deepEqual([3_000, 6_000, 12_000, 24_000].map((area) => wordStyle(area, 0.5).fontSize), [12, 13, 15, 17]);
+  const hot = wordStyle(10_000, 0.9);
+  const calm = wordStyle(10_000, 0.5);
+  assert.equal(hot.hot, true);
+  assert.equal(calm.hot, false);
+  assert.ok(hot.lightness < 50 && calm.lightness > 80);
+  assert.ok(wordStyle(10_000, 1).lightness < wordStyle(10_000, 0.8).lightness);
+  assert.ok(wordStyle(10_000, 0).lightness > wordStyle(10_000, 0.7).lightness);
 });
