@@ -49,7 +49,7 @@
 | マンガ | コミックナタリー、AniList マンガ |
 | 小説 | 小説家になろう 日間 / 週間ランキング (公式 API)、Google ニュース検索 (ライトノベル) |
 | 本 | Apple Books 有料 |
-| 音楽 | 音楽ナタリー、Apple Music トップソング |
+| 音楽 | 音楽ナタリー、BARKS、Real Sound 音楽、Apple Music トップソング・トップアルバム・トップミュージックビデオ |
 | 芸能 | Yahoo!ニュース エンタメ、お笑いナタリー、Google ニュース検索 (芸能、直近 1 日) |
 | エンタメ | 映画ナタリー、はてブ エンタメ / おもしろ、Apple Podcasts |
 | ファッション | WWDJAPAN、ELLE Japan、Google ニュース検索 (ファッション トレンド) |

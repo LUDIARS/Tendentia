@@ -122,6 +122,14 @@ const GENRE_EXPANSION_SOURCES: TrendSource[] = [
   { id: 'gn-app', name: 'Google ニュース「アプリ 話題」', genre: 'app', kind: 'rss', url: googleNewsSearch('アプリ 話題', 'ja'), enabled: true },
 ];
 
+/** 2026-10-14 neco「収集物に音楽を追加」。 音楽は Apple Music の曲と音楽ナタリーだけだったので、 アルバム・MV のランキングと音楽ニュースを足す。 */
+const MUSIC_SOURCES: TrendSource[] = [
+  { id: 'apple-music-albums-jp', name: 'Apple Music トップアルバム (日本)', genre: 'music', kind: 'apple_top', url: `${APPLE}/music/most-played/50/albums.json`, enabled: true },
+  { id: 'apple-music-videos-jp', name: 'Apple Music トップミュージックビデオ (日本)', genre: 'music', kind: 'apple_top', url: `${APPLE}/music/most-played/50/music-videos.json`, enabled: true },
+  { id: 'barks', name: 'BARKS', genre: 'music', kind: 'rss', url: 'https://barks.jp/feed/', enabled: true },
+  { id: 'realsound-music', name: 'Real Sound 音楽', genre: 'music', kind: 'rss', url: 'https://realsound.jp/music/feed', enabled: true },
+];
+
 /**
  * 既定ソースを追加した版ごとに並べる。 保存済み設定は defaultsVersion より新しい版のソースだけを
  * 読み込み時に足す (config.ts withNewDefaultSources)。 既定を増やすときは新しい版を足す。
@@ -130,6 +138,7 @@ export const DEFAULT_TREND_SOURCE_RELEASES: { version: number; sources: TrendSou
   { version: 1, sources: INITIAL_SOURCES },
   { version: 2, sources: YOUTH_SOURCES },
   { version: 3, sources: GENRE_EXPANSION_SOURCES },
+  { version: 4, sources: MUSIC_SOURCES },
 ];
 
 export const DEFAULT_TREND_SOURCES: TrendSource[] = DEFAULT_TREND_SOURCE_RELEASES.flatMap((release) => release.sources);

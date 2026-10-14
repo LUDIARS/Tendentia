@@ -213,8 +213,9 @@ test('読み込み時に古い版の保存設定へ新しいジャンルのソ�
     JSON.stringify({ ...DEFAULT_TREND_CRAWLER_CONFIG, defaultsVersion: 2, sources: SOURCES, summarize: true }), 'trend_crawler.config',
   );
   const config = getTrendCrawlerConfig(db);
-  const v3 = DEFAULT_TREND_SOURCE_RELEASES.find((release) => release.version === 3)!.sources;
-  assert.equal(config.sources.length, SOURCES.length + v3.length);
+  const after2 = DEFAULT_TREND_SOURCE_RELEASES.filter((release) => release.version > 2).flatMap((release) => release.sources);
+  assert.equal(config.sources.length, SOURCES.length + after2.length);
+  assert.ok(config.sources.some((s) => s.id === 'apple-music-albums-jp'));
   assert.equal('summarize' in config, false);
   assert.equal(trendCrawlerConfigSchema.safeParse(config).success, true);
 });
