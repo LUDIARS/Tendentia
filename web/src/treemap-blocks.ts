@@ -18,12 +18,15 @@ export interface TreemapGenre {
   label: string;
 }
 
-// 大きさに差をつける (2026-10-14 neco「大きさに差をつけて欲しい」)。 興味は上位がどれも 0.7〜1 に固まるので、
-// そのまま比例させると全部同じ大きさになる。 ワードは興味の 4 乗、 ブロックは全話題の興味の 2 乗の合計で広さを決める
-// (話題が多く注目の強いジャンルほど広い = 市場規模マップの「規模」)。
+// 大きさは全ジャンルでまとめて 1 回決める (2026-10-14 neco「大きさに差をつけて欲しい」「全カテゴリで一回まとめてブロックの
+// 大きさ決めて欲しい」)。 ワード 1 つの広さは所属ジャンルに関係なく興味だけで決め (興味の 4 乗。 興味は上位がどれも 0.7〜1 に
+// 固まるので差を広げる)、 ブロックの広さはそのブロックに並べるワードの広さの合計 + 見出しの分にする (市場規模マップと同じ)。
+// そのため同じ興味のワードは、 どのジャンルのブロックにあってもほぼ同じ大きさになる。
 
 /** 興味 0 の話題も小さく残す (消えない)。 */
 const TILE_FLOOR = 0.03;
+/** ジャンル名の見出しに使う広さ (ワードの合計に対する割合)。 */
+const HEADER_SHARE = 0.2;
 /** これより狭いブロックは作らない (中央のジャンルの広さに対する割合)。 ジャンル名とワード 1 つが読めるように。 */
 const BLOCK_FLOOR_OF_MEDIAN = 0.35;
 
@@ -43,24 +46,27 @@ function median(values: number[]): number {
   return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
 }
 
-/** ジャンルごとにまとめ、 話題は興味の強い順に並べる。 ブロックの重みは全話題の興味の 2 乗の合計 (小さすぎるものは底上げ)。 */
-export function groupByGenre(tiles: readonly TreemapTile[], genres: readonly TreemapGenre[]): GenreBlock[] {
+/**
+ * ジャンルごとにまとめ、 話題は興味の強い順に並べる。 ブロックの重みは、 並べる上位 wordsPerBlock 件のワードの重みの
+ * 合計 + 見出しの分 (全ジャンル共通の物差し)。 小さすぎるものだけ読める広さまで底上げする。
+ */
+export function groupByGenre(tiles: readonly TreemapTile[], genres: readonly TreemapGenre[], wordsPerBlock = 6): GenreBlock[] {
   const blocks = genres.map((genre) => {
     const entries = tiles.map((tile, index) => ({ tile, index }))
       .filter((entry) => entry.tile.genre === genre.genre)
       .sort((a, b) => b.tile.interest - a.tile.interest || a.tile.rank - b.tile.rank);
-    const weight = entries.reduce((sum, entry) => sum + TILE_FLOOR + clamp01(entry.tile.interest) ** 2, 0);
-    return { genre, tiles: entries, weight };
+    const words = entries.slice(0, wordsPerBlock).reduce((sum, entry) => sum + tileWeight(entry.tile), 0);
+    return { genre, tiles: entries, weight: words * (1 + HEADER_SHARE) };
   }).filter((block) => block.tiles.length > 0);
   if (blocks.length < 2) return blocks;
   const floor = median(blocks.map((block) => block.weight)) * BLOCK_FLOOR_OF_MEDIAN;
   return blocks.map((block) => ({ ...block, weight: Math.max(block.weight, floor) }));
 }
 
-/** 1 ブロックあたりの目安の面積 (px²)。 ジャンル名と注目ワード 2〜3 つが読める広さ。 */
-const BLOCK_AREA = 17_000;
+/** 重み 1 (興味が最大) のワード 1 つに使う面積 (px²)。 だいたい 100 × 100。 全ジャンル共通の物差し。 */
+const UNIT_AREA = 10_000;
 
-/** 全体の高さ。 ブロックの数 × 目安の面積を幅で割る (少なくとも幅の 1.2 倍、 多くても 4 倍)。 */
-export function treemapHeight(width: number, blocks: number): number {
-  return Math.round(Math.min(width * 4, Math.max(width * 1.2, (blocks * BLOCK_AREA) / width)));
+/** 全体の高さ。 ブロックの重みの合計 × 物差しの面積を幅で割る (少なくとも幅の 1.2 倍、 多くても 6 倍)。 */
+export function treemapHeight(width: number, totalWeight: number): number {
+  return Math.round(Math.min(width * 6, Math.max(width * 1.2, (totalWeight * UNIT_AREA) / width)));
 }

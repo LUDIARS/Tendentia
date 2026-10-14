@@ -21,7 +21,7 @@ const MAX_WORDS = 6;
 const MAX_WORDS_SINGLE = 24;
 const HEADER_HEIGHT = 22;
 /** 話題 1 つに要る最小の面積 (px²)。 これより狭くなるなら並べる数を減らす。 */
-const MIN_WORD_AREA = 6000;
+const MIN_WORD_AREA = 2400;
 /** ワードの四角の最小の幅・高さ (px)。 これより細くなるなら並べる数を減らす。 */
 const MIN_WORD_WIDTH = 56;
 const MIN_WORD_HEIGHT = 30;
@@ -69,12 +69,13 @@ function blockHtml(block: GenreBlock, rect: Rect, maxWords: number): string {
 
 /** 画面の幅に合わせてブロックを敷き詰める。 高さは幅とブロックの数から決める (縦にスクロールする)。 */
 export function renderTreemap(container: HTMLElement, tiles: readonly TreemapTile[], genres: readonly TreemapGenre[], options: TreemapOptions): void {
-  const blocks = groupByGenre(tiles, genres);
+  // ブロックの広さは、 並べるワードの広さの合計で全ジャンルまとめて決める (treemap-blocks.ts)。
+  const maxWords = genres.length === 1 ? MAX_WORDS_SINGLE : MAX_WORDS;
+  const blocks = groupByGenre(tiles, genres, maxWords);
   const width = Math.max(280, container.clientWidth);
-  const height = treemapHeight(width, blocks.length);
+  const height = treemapHeight(width, blocks.reduce((sum, block) => sum + block.weight, 0));
   const placed = squarify(blocks, (block) => block.weight, { x: 0, y: 0, width, height });
   container.style.height = `${height}px`;
-  const maxWords = blocks.length === 1 ? MAX_WORDS_SINGLE : MAX_WORDS;
   container.innerHTML = placed.map((cell) => blockHtml(cell.item, cell, maxWords)).join('');
 
   container.querySelectorAll<HTMLElement>('.tt-word[data-index]').forEach((element) => {

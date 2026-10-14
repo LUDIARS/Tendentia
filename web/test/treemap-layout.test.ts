@@ -54,31 +54,35 @@ test('ジャンルごとにまとめ、 興味の強い順に並べる。 話題
   assert.ok(blocks[0].weight > blocks[1].weight);
 });
 
-test('大きさに差をつける: ワードは興味の 4 乗、 ブロックは全話題の興味の 2 乗の合計で、 小さすぎるブロックは底上げする', () => {
+test('大きさは全ジャンルまとめて決める: ワードは興味の 4 乗、 ブロックは並べるワードの合計 + 見出し、 小さすぎるブロックは底上げ', () => {
   const tile = (key: string, genre: TreemapTile['genre'], interest: number): TreemapTile =>
     ({ key, title: key, url: null, genre, interest, rank: 1, sourceName: 's' });
   // 興味 0.97 と 0.69 (上位に多い値) でも、 ワードの広さは 2.5 倍以上違う。
   assert.ok(tileWeight(tile('a', 'tech', 0.97)) / tileWeight(tile('b', 'tech', 0.69)) > 2.5);
   assert.ok(tileWeight(tile('z', 'tech', 0)) > 0);
-  // 話題が多く興味の強いジャンルほど広い。 話題の少ないジャンルは中央の 35% まで底上げ。
   const tiles = [
-    ...Array.from({ length: 40 }, (_, i) => tile(`t${i}`, 'tech', 0.8)),
-    ...Array.from({ length: 20 }, (_, i) => tile(`g${i}`, 'game', 0.8)),
-    ...Array.from({ length: 10 }, (_, i) => tile(`m${i}`, 'music', 0.8)),
-    tile('b0', 'book', 0.3),
+    ...Array.from({ length: 40 }, (_, i) => tile(`t${i}`, 'tech', 0.9)),
+    tile('g0', 'game', 0.9), tile('g1', 'game', 0.9), tile('g2', 'game', 0.9),
+    tile('m0', 'music', 0.6), tile('m1', 'music', 0.6), tile('m2', 'music', 0.6),
+    tile('b0', 'book', 0.1),
   ];
-  const blocks = groupByGenre(tiles, (['tech', 'game', 'music', 'book'] as const).map((genre) => ({ genre, label: genre })));
+  const blocks = groupByGenre(tiles, (['tech', 'game', 'music', 'book'] as const).map((genre) => ({ genre, label: genre })), 6);
   const weight = (genre: string) => blocks.find((b) => b.genre.genre === genre)!.weight;
-  assert.ok(weight('tech') > weight('game') && weight('game') > weight('music'));
-  assert.ok(Math.abs(weight('tech') / weight('game') - 2) < 0.01);
+  // ブロックの重み = 並べる (上位 6 件の) ワードの重みの合計 × 1.2。 話題が 40 件あっても並べる 6 件分だけ。
+  assert.ok(Math.abs(weight('tech') - 6 * tileWeight(tile('x', 'tech', 0.9)) * 1.2) < 1e-9);
+  assert.ok(Math.abs(weight('game') - 3 * tileWeight(tile('x', 'game', 0.9)) * 1.2) < 1e-9);
+  // 同じ興味のワード 1 つあたりの重みは、 どのジャンルでも同じ (= 同じ広さ)。
+  assert.ok(Math.abs(weight('tech') / 6 - weight('game') / 3) < 1e-9);
+  // 興味の弱いジャンルは狭い。 読めないほど小さいものは中央のジャンルの 35% まで底上げ。
+  assert.ok(weight('music') < weight('game'));
   const median = (weight('game') + weight('music')) / 2;
   assert.ok(Math.abs(weight('book') - median * 0.35) < 1e-9);
 });
 
-test('全体の高さはブロックの数に合わせ、 幅の 1.2〜4 倍に収める', () => {
-  assert.equal(treemapHeight(360, 1), 432);
-  assert.equal(treemapHeight(360, 24), Math.round((24 * 17_000) / 360));
-  assert.equal(treemapHeight(360, 200), 1440);
+test('全体の高さは重みの合計 × 物差し (重み 1 = 1 万 px²) を幅で割り、 幅の 1.2〜6 倍に収める', () => {
+  assert.equal(treemapHeight(360, 0.1), 432);
+  assert.equal(treemapHeight(360, 50), Math.round((50 * 10_000) / 360));
+  assert.equal(treemapHeight(360, 1_000), 2160);
 });
 
 test('細すぎる四角ができるなら並べる数を減らし、 少なくとも 1 つは置く', () => {
