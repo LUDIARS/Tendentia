@@ -112,6 +112,11 @@ Google トレンドの item は link がフィード自身を指すため、最�
 - スコアは対数で 0〜1 に正規化して大きさを決める。ジャンルの興味が 0 でもスコアは 0 にしない。
 - 同じ話題が複数ソースに出ていても 1 枚にまとめる。1 ソースからは上位 8 件まで載せる。
 - 色はジャンルごとの色相 (`web/src/genres.ts`) を inline の `--tm-h` で渡す。
+- スマホ (幅 640px 以下) では円の代わりに、市場規模マップの形のジャンル別ブロックで見せる
+  (2026-10-14 neco「円は見にくかった」「ブロックの中に注目ワードがいくつか並ぶ」)。ブロックの広さはそのジャンルの
+  上位 6 件の重み (0.35 + 興味) の合計、ブロックの中には興味の強い順に入るだけ (最大 6、ジャンルを絞ると 24) の話題を
+  興味に比例した四角で並べ、入りきらない分は「ほか n 件」。割り付けは squarified treemap
+  (`web/src/treemap-layout.ts`、ジャンル分けと高さは `treemap-blocks.ts`、描画は `trend-treemap-view.ts`)。
 - 構成: `interest.ts` (純関数のスコア) / `interest-store.ts` (設定と開いた記録) / `map.ts` (タイル組み立て) /
   `web/src/trend-map-view.ts` (描画・ジャンル別の興味・気になる言葉)。
 - 開いた記録は端末内の SQLite (`data/tendentia.db` の `trend_clicks`) に閉じる。ジャンルの興味 (`app_settings` の `trend_crawler.interest`) は

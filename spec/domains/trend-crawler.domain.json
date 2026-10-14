@@ -24,6 +24,15 @@
       "pathPattern": "(^|/)web/src/trend-map-view\\.ts$"
     },
     {
+      "pathPattern": "(^|/)web/src/trend-treemap-view\\.ts$"
+    },
+    {
+      "pathPattern": "(^|/)web/src/treemap-(layout|blocks)\\.ts$"
+    },
+    {
+      "pathPattern": "(^|/)web/test/[^/]+\\.ts$"
+    },
+    {
       "pathPattern": "(^|/)web/src/genres\\.ts$"
     }
   ],

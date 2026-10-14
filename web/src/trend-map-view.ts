@@ -5,6 +5,7 @@
 
 import { genreHue, type TrendGenre } from './genres.ts';
 import { escapeHtml } from './sanitize.ts';
+import { renderTreemap } from './trend-treemap-view.ts';
 
 type MovementStatus = 'new' | 'up' | 'down' | 'same' | 'unknown';
 
@@ -63,6 +64,11 @@ let root: HTMLElement | null = null;
 /** 公開 URL からの閲覧 (ログインしていない) では false。 興味の設定と開いた記録を送らない。 */
 let editable = true;
 
+/** これより狭い画面 (スマホ) では、 円の代わりにジャンル別ブロック (ツリーマップ) で見せる。 */
+const NARROW = '(max-width: 640px)';
+const isNarrow = (): boolean => typeof matchMedia === 'function' && matchMedia(NARROW).matches;
+let narrowWatched = false;
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, init);
   const body = await response.json().catch(() => ({})) as { error?: string } & T;
@@ -120,18 +126,39 @@ function render(): void {
   if (!root || !current) return;
   const map = current;
   const tiles = selectedGenre === 'all' ? map.tiles : map.tiles.filter((tile) => tile.genre === selectedGenre);
+  const narrow = isNarrow();
+  const field = narrow
+    ? '<div class="tt-treemap" id="trendTreemap"></div>'
+    : `<div class="tm-field">${tiles.map((tile) => tileHtml(tile, map.tiles.indexOf(tile))).join('')}</div>`;
   root.innerHTML = `<div class="tm-view foundation-form">
-    <p class="tm-help muted">色はジャンル、 大きさと丸さは興味の度合いです。 ジャンルごとの興味と気になる言葉で大きさが変わり、 開いた話題やよく開くジャンルも少しずつ大きくなります。 興味が薄いものも小さく残ります。</p>
+    <p class="tm-help muted">${narrow
+      ? '色はジャンル、 ブロックの広さは興味の度合いです。 ジャンル名を押すとそのジャンルだけ表示します。'
+      : '色はジャンル、 大きさと丸さは興味の度合いです。 ジャンルごとの興味と気になる言葉で大きさが変わり、 開いた話題やよく開くジャンルも少しずつ大きくなります。 興味が薄いものも小さく残ります。'}</p>
     ${legendHtml(map)}
     <div class="tm-keywords td-personal">
       <label><span>気になる言葉 (読点・カンマ・改行で区切る)</span><input id="trendMapKeywords" type="text" maxlength="800" value="${escapeHtml(map.prefs.keywords.join('、'))}" placeholder="例: AI、ゲーム、ラーメン"></label>
       <button type="button" id="trendMapSaveKeywords">保存</button>
       <span id="trendMapStatus" class="muted"></span>
     </div>
-    ${tiles.length ? `<div class="tm-field">${tiles.map((tile) => tileHtml(tile, map.tiles.indexOf(tile))).join('')}</div>`
+    ${tiles.length ? field
       : '<div class="empty">まだトレンドがありません。「今すぐ巡回」を押すか、 次の自動巡回を待ってください。</div>'}
   </div>`;
   bind();
+  const treemap = document.getElementById('trendTreemap');
+  if (treemap && tiles.length) {
+    // ジャンルを 1 つに絞っているときは、 そのジャンルのブロック 1 つが画面いっぱいに広がる。
+    const genres = map.genres.filter((genre) => selectedGenre === 'all' || genre.genre === selectedGenre);
+    renderTreemap(treemap, map.tiles, genres, {
+      onOpen: (index) => {
+        const tile = map.tiles[index];
+        if (tile && editable) recordClick(tile);
+      },
+      onSelectGenre: (genre) => {
+        selectedGenre = selectedGenre === genre ? 'all' : genre;
+        render();
+      },
+    });
+  }
 }
 
 function setStatus(text: string): void {
@@ -205,6 +232,11 @@ async function reload(): Promise<void> {
 export async function loadTrendMap(container: HTMLElement, canEdit = true): Promise<void> {
   root = container;
   editable = canEdit;
+  if (!narrowWatched && typeof matchMedia === 'function') {
+    // 画面の向きや幅が変わって円とブロックが入れ替わるときだけ描き直す。
+    narrowWatched = true;
+    matchMedia(NARROW).addEventListener('change', () => render());
+  }
   try {
     await reload();
   } catch (error) {

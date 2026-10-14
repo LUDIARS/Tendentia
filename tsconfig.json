@@ -19,6 +19,7 @@
     "erasableSyntaxOnly": true
   },
   "include": [
-    "src/**/*.ts"
+    "src/**/*.ts",
+    "web/test/**/*.ts"
   ]
 }
