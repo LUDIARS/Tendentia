@@ -1,6 +1,7 @@
 // だれの要求を通すかを決める。
 // - 同じ端末から (127.0.0.1 / この機械の名前・アドレス) の要求は今まで通り通し、 変更もできる。
-// - 公開 Host (TENDENTIA_PUBLIC_URL と LUDIARS_ALLOWED_HOSTS) への要求:
+// - viewer (AWS の閲覧専用) は、 同じ端末も含めて誰からの変更も受け付けない (readOnly)。
+// - 公開 Host (TENDENTIA_SELF_URL と LUDIARS_ALLOWED_HOSTS) への要求:
 //   - Cloudflare Access を設定していない (全公開。 2026-10-14 neco「秘匿物ないので全公開で良い」) ときは、
 //     閲覧 (GET / HEAD) だけ誰でも通す。 設定の変更・巡回・興味・開いた記録などの書き込みは断る。
 //   - Cloudflare Access を設定したときは JWT が正しい要求だけを通し、 ログイン済みなら変更もできる。
@@ -47,13 +48,15 @@ export function parseAllowedHosts(value: string | undefined): string[] {
 export function parsePublicOrigin(value: string | undefined): string | null {
   if (!value?.trim()) return null;
   let url: URL;
-  try { url = new URL(value.trim()); } catch { throw new Error('TENDENTIA_PUBLIC_URL は https の Origin で指定してください'); }
-  if (url.protocol !== 'https:' || url.origin !== value.trim()) throw new Error('TENDENTIA_PUBLIC_URL は https の Origin で指定してください');
+  try { url = new URL(value.trim()); } catch { throw new Error('TENDENTIA_SELF_URL は https の Origin で指定してください'); }
+  if (url.protocol !== 'https:' || url.origin !== value.trim()) throw new Error('TENDENTIA_SELF_URL は https の Origin で指定してください');
   return url.origin;
 }
 
 export function publicEntrance(env: NodeJS.ProcessEnv): PublicEntrance {
-  const origin = parsePublicOrigin(env.TENDENTIA_PUBLIC_URL);
+  // 自分の公開 URL。 TENDENTIA_PUBLIC_URL は「見せる側の公開 URL」として catalog の provides で全サービスに配るので、
+  // 名前がぶつからないよう自分用は TENDENTIA_SELF_URL で受け取る。
+  const origin = parsePublicOrigin(env.TENDENTIA_SELF_URL);
   const hosts = parseAllowedHosts(env.LUDIARS_ALLOWED_HOSTS);
   if (origin) hosts.push(new URL(origin).host);
   return { origin, hosts };
@@ -65,6 +68,8 @@ export interface AccessGateDeps {
   entrance: PublicEntrance;
   verifier?: CfAccessVerifier;
   sameMachine?: (context: Context) => boolean;
+  /** true なら誰からの変更も受け付けない (viewer)。 */
+  readOnly?: boolean;
 }
 
 export class AccessGate {
@@ -75,6 +80,15 @@ export class AccessGate {
   }
 
   async decide(context: Context): Promise<AccessDecision> {
+    const decision = await this.decideAccess(context);
+    if (!this.deps.readOnly || !decision.ok) return decision;
+    if (!READ_METHODS.has(context.req.method.toUpperCase())) {
+      return { ok: false, status: 403, reason: 'この Tendentia は閲覧専用です (変更は本社の Tendentia で)' };
+    }
+    return { ...decision, canEdit: false };
+  }
+
+  private async decideAccess(context: Context): Promise<AccessDecision> {
     const sameMachine = this.deps.sameMachine ?? isSameMachineRequest;
     if (sameMachine(context)) return { ok: true, via: 'local', canEdit: true };
     const host = context.req.header('host');

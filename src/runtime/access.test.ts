@@ -60,7 +60,7 @@ test('公開 URL と許可 Host の読み取り', () => {
   assert.throws(() => parsePublicOrigin('https://tendentia.example.com/path'), /https/);
   assert.deepEqual(parseAllowedHosts(' .example.com, a.test '), ['.example.com', 'a.test']);
   assert.throws(() => parseAllowedHosts('bad host'), /不正/);
-  const entrance = publicEntrance({ TENDENTIA_PUBLIC_URL: 'https://tendentia.example.com', LUDIARS_ALLOWED_HOSTS: '.example.net' });
+  const entrance = publicEntrance({ TENDENTIA_SELF_URL: 'https://tendentia.example.com', LUDIARS_ALLOWED_HOSTS: '.example.net' });
   assert.deepEqual(entrance, { origin: 'https://tendentia.example.com', hosts: ['.example.net', 'tendentia.example.com'] });
   assert.equal(matchesHost('tendentia.example.com', entrance.hosts), true);
   assert.equal(matchesHost('x.example.net', entrance.hosts), true);

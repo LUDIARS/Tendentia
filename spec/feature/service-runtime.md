@@ -7,7 +7,7 @@ Tendentia は設定の読み込み・データの用意・HTTP の入口・定�
 
 ## 構成
 
-- `src/main.ts`: 起動。設定を読み、DB を開き、HTTP と定期巡回 (`src/trend/scheduler.ts`) を始める。
+- `src/main.ts`: 起動。設定を読み、DB を開き、HTTP と、collector なら定期巡回 (`src/trend/scheduler.ts`)、viewer なら本社からの写し (`src/trend/replica/puller.ts`) を始める。
 - `src/runtime/config.ts`: 環境変数からの起動設定。
 - `src/runtime/db.ts`: `data/tendentia.db` を開き、`app_settings` とトレンドの表を用意する (WAL)。
 - `src/runtime/app.ts`: Hono アプリ。`GET /health`、`/api/trend-crawler/*`、画面の配信。
@@ -25,7 +25,9 @@ Tendentia は設定の読み込み・データの用意・HTTP の入口・定�
 |---|---|---|
 | `TENDENTIA_PORT` | 待受ポート。正本は `excubitor.catalog.yaml` (4450) | なし (必須) |
 | `TENDENTIA_HOST` | 待受アドレス | `127.0.0.1` |
-| `TENDENTIA_PUBLIC_URL` | 公開 URL (https の Origin)。catalog が `https://tendentia${DOMAIN_ROOT}` を渡す | なし (公開しない) |
+| `TENDENTIA_ROLE` | `collector` (本社で巡回) か `viewer` (AWS で写しを見せるだけ) | `collector` |
+| `TENDENTIA_UPSTREAM_URL` | viewer が写しを取りに行く collector の https URL。viewer では必須 | なし |
+| `TENDENTIA_SELF_URL` | 自分の公開 URL (https の Origin)。collector は `https://tendentia-hq${DOMAIN_ROOT}`、viewer は `https://tendentia${DOMAIN_ROOT}` | なし (公開しない) |
 | `LUDIARS_ALLOWED_HOSTS` | 公開として受け付ける追加の Host (Excubitor の global env) | なし |
 | `TENDENTIA_CF_ACCESS_TEAM_DOMAIN` / `TENDENTIA_CF_ACCESS_AUD` | Access の設定を明示するとき (2 つ組)。無ければ `EXCUBITOR_SERVICE_CONFIG_JSON` の `cloudflareAccess` | なし |
 | `TENDENTIA_DATA_DIR` | DB の置き場所 (相対ならリポジトリ直下から) | `data` |
@@ -34,6 +36,9 @@ Tendentia は設定の読み込み・データの用意・HTTP の入口・定�
 `.ts` を直接読む (相対 import は `.ts` 拡張子、`verbatimModuleSyntax` / `erasableSyntaxOnly` で型除去できる書き方に限る)。
 
 ## 公開の入口
+
+`TENDENTIA_PUBLIC_URL` は catalog の provides で Memoria などへ配る「みんなが見る公開 URL」(viewer) なので、自分の公開 URL は `TENDENTIA_SELF_URL` で受け取る。
+viewer (`TENDENTIA_ROLE=viewer`) は下の判定で通ったあとも書き込みを全部 403 にする (同じ端末からも)。
 
 外 (スマホなど) からは Cloudflare Tunnel 経由の公開 URL で開く。2026-10-14 neco「秘匿物ないので全公開で良い」により、
 既定は Cloudflare Access なしの全公開で、公開 URL からは閲覧だけできる。判定の順 (health は誰でも見られる):

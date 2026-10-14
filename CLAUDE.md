@@ -19,3 +19,5 @@ LUDIARS 短縮コード: **Td**。トレンドの集積とトレンドマップ�
 - 個人データ (開いた記録・興味の設定) は `data/tendentia.db` に閉じる。
 - 表を変えたら `scripts/site/data-bundle.mjs` の `SCHEMA_SQL` も合わせる (一致はテストで確かめる)。
 - 新しいファイルは `spec/domains/*.domain.json` のどれかの `membership` に入れる (pathPattern は `(^|/)` で書く)。
+- 役割は 2 つ: 本社の collector (`tendentia`、巡回・変更) と AWS の viewer (`tendentia-viewer`、写しを見せるだけ)。
+  写しは `src/trend/replica/`。開いた記録 (`trend_clicks`) は写さない (本社に閉じる)。

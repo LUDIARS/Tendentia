@@ -114,7 +114,24 @@ Google トレンドの item は link がフィード自身を指すため、最�
 - 色はジャンルごとの色相 (`web/src/genres.ts`) を inline の `--tm-h` で渡す。
 - 構成: `interest.ts` (純関数のスコア) / `interest-store.ts` (設定と開いた記録) / `map.ts` (タイル組み立て) /
   `web/src/trend-map-view.ts` (描画・ジャンル別の興味・気になる言葉)。
-- 開いた記録とジャンルの興味は端末内の SQLite (`data/tendentia.db` の `trend_clicks`、`app_settings` の `trend_crawler.interest`) に閉じる。
+- 開いた記録は端末内の SQLite (`data/tendentia.db` の `trend_clicks`) に閉じる。ジャンルの興味 (`app_settings` の `trend_crawler.interest`) は
+  マップの見え方そのものなので、AWS の viewer へ写す (下の「写し」)。
+
+## 写し
+
+2026-10-14 neco「Td は AWS に置きます」「巡回と収集は本社で」「閲覧だけでよい」。巡回は本社の collector
+(`tendentia`、`TENDENTIA_ROLE=collector`) だけが行い、みんなが開く公開 URL は AWS の viewer
+(`tendentia-viewer`、`TENDENTIA_ROLE=viewer`) が出す。viewer は巡回も変更もせず、本社から写しを取るだけ。
+
+- collector: `GET /api/sync/export?after=<snapshot id>` で、その id より後の取得 (`trend_snapshots`) 最大 200 件と
+  その項目 (`trend_items`)、写す設定 (`trend_crawler.config` / `trend_crawler.interest`) を返す。続きがあれば `more: true`。
+  読み出しだけなので公開 URL (`tendentia-hq`) からも誰でも読める。データは全公開なので秘密の値は使わない。
+- viewer: 起動 5 秒後と 10 分おきに、自分の持っている最大の id から続きが無くなるまで (最大 50 ページ) 取りに行く。
+  取得は id を保ったまま入れ、既にある id は飛ばす (同じ書き出しを 2 回入れても増えない)。設定は丸ごと置き換え、
+  値が null なら消す。取り込んだ位置は `app_settings` の `trend_replica.cursor` にも覚える (古い履歴を消しても同じ取得を取り直さない)。取り込み後、写した `retentionDays` で古い履歴を消す。失敗しても持っている分を出し続け、次の回で再試行する。
+- viewer は同じ端末からも含めて書き込みを 403 にする (`この Tendentia は閲覧専用です`)。
+- 開いた記録 (`trend_clicks`) は閲覧の行動そのものなので写さない。そのため viewer のマップには「よく開くジャンル」「開いた話題」が効かない。
+- 構成: `src/trend/replica/` (`export.ts` 書き出し / `import.ts` 形の確認と取り込み / `puller.ts` 取りに行く / `router.ts` 書き出し口)。
 
 ## HTTP API (同一端末のみ)
 
@@ -129,7 +146,7 @@ Google トレンドの item は link がフィード自身を指すため、最�
 
 ## 制約
 
-- 個人データは外へ送らない。LLM は使わない (2026-10-14 neco「LLM は使用しなくてよい」で AI 要約を廃止)。
+- 開いた記録は外へ送らない (写しにも入れない)。LLM は使わない (2026-10-14 neco「LLM は使用しなくてよい」で AI 要約を廃止)。
 - 利用者が URL を変えられる GET 取得は `src/shared/public-fetch.ts` (SSRF ガード) を通す。
   AniList は固定の公式エンドポイントへの POST なので通常の fetch で 2MB / 20 秒まで。
 - 比較キーは NFKC・小文字化・空白と記号の除去で作る。1 文字のキーは別話題の偶然一致が多いので

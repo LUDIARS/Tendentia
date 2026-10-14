@@ -12,6 +12,9 @@
       "pathPattern": "(^|/)src/trend/sources/[^/]+\\.ts$"
     },
     {
+      "pathPattern": "(^|/)src/trend/replica/[^/]+\\.ts$"
+    },
+    {
       "pathPattern": "(^|/)web/src/trend-crawler-view\\.ts$"
     },
     {
@@ -29,6 +32,7 @@
     "spec/feature/trend-crawler.md#注目",
     "spec/feature/trend-crawler.md#巡回の間隔",
     "spec/feature/trend-crawler.md#トレンドマップ",
+    "spec/feature/trend-crawler.md#写し",
     "spec/feature/trend-crawler.md#制約"
   ]
 }

@@ -3,6 +3,7 @@
 
 import type BetterSqlite3 from 'better-sqlite3';
 import { Hono } from 'hono';
+import { makeSyncRouter } from '../trend/replica/router.ts';
 import { makeTrendCrawlerRouter } from '../trend/router.ts';
 import { AccessGate } from './access-gate.ts';
 import { makeStaticHandler } from './static.ts';
@@ -15,13 +16,17 @@ export interface AppDeps {
   version: string;
   /** 省略時は公開の入口なし (同じ端末だけ)。 */
   gate?: AccessGate;
+  /** collector だけ写しの書き出し口 (GET /api/sync/export) を出す。 */
+  syncExport?: boolean;
 }
 
 export function makeApp(deps: AppDeps): Hono {
   const app = new Hono();
   const gate = deps.gate ?? new AccessGate({ entrance: { origin: null, hosts: [] } });
   app.get('/health', (context) => context.json({ ok: true, service: 'tendentia', version: deps.version }));
-  app.route('/', makeTrendCrawlerRouter({ db: deps.db, authorize: (context) => gate.decide(context) }));
+  const authorize = (context: Parameters<AccessGate['decide']>[0]) => gate.decide(context);
+  app.route('/', makeTrendCrawlerRouter({ db: deps.db, authorize }));
+  if (deps.syncExport) app.route('/', makeSyncRouter({ db: deps.db, authorize }));
   const serveStatic = makeStaticHandler(deps.webDir);
   app.get('*', async (context) => {
     const decision = await gate.decide(context);
