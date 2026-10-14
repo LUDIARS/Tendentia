@@ -1,4 +1,4 @@
-import type { TrendCrawlResult } from './types.js';
+import type { TrendCrawlResult } from './types.ts';
 
 export type TrendCrawlRequest =
   | { status: 'started'; promise: Promise<TrendCrawlResult> }

@@ -2,7 +2,7 @@
 // Google トレンドの検索数 (ht:approx_traffic) と はてブのブックマーク数 (hatena:bookmarkcount) は指標として拾う。
 
 import { XMLParser } from 'fast-xml-parser';
-import type { RawTrendItem } from '../types.js';
+import type { RawTrendItem } from '../types.ts';
 
 const parser = new XMLParser({
   ignoreAttributes: false,

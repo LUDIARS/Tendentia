@@ -1,7 +1,7 @@
 // Wikimedia の閲覧数ランキング (前日分) を順位付きの一覧に変える。
 // メインページ・特別ページ・名前空間付きのページは話題ではないので除く。
 
-import type { RawTrendItem } from '../types.js';
+import type { RawTrendItem } from '../types.ts';
 
 /** `https://ja.wikipedia.org` → `ja.wikipedia`。 */
 export function wikipediaProject(siteUrl: string): string {

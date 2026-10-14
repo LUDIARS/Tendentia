@@ -30,7 +30,8 @@ Tendentia は設定の読み込み・データの用意・HTTP の入口・定�
 | `TENDENTIA_CF_ACCESS_TEAM_DOMAIN` / `TENDENTIA_CF_ACCESS_AUD` | Access の設定を明示するとき (2 つ組)。無ければ `EXCUBITOR_SERVICE_CONFIG_JSON` の `cloudflareAccess` | なし |
 | `TENDENTIA_DATA_DIR` | DB の置き場所 (相対ならリポジトリ直下から) | `data` |
 
-常駐は `npm run build` 後の `node dist/server.js`。tsx は常駐させない。
+常駐は `npm run build` 後の `node dist/server.js`。tsx は使わない: テストは Node 24+ の型除去で `node --test` が
+`.ts` を直接読む (相対 import は `.ts` 拡張子、`verbatimModuleSyntax` / `erasableSyntaxOnly` で型除去できる書き方に限る)。
 
 ## 公開の入口
 

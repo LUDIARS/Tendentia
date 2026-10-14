@@ -4,8 +4,8 @@
 //        × トレンドの強さ (順位・新登場・急上昇・複数サイト一致)。
 // 表示の大きさは 0〜1 に正規化した値で決め、 最小値でも消さない (大きさの下限は画面側が持つ)。
 
-import { trendKey } from './movement.js';
-import type { TrendGenre, TrendMovementStatus } from './types.js';
+import { trendKey } from './movement.ts';
+import type { TrendGenre, TrendMovementStatus } from './types.ts';
 
 export interface TrendInterestPrefs {
   /** ジャンルごとの興味の強さ。 0 (ほぼ興味なし) 〜 3。 未設定は 1。 */

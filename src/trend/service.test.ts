@@ -1,16 +1,16 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import Database from 'better-sqlite3';
-import { DEFAULT_TREND_CRAWLER_CONFIG, getTrendCrawlerConfig, setTrendCrawlerConfig, trendCrawlerConfigSchema, withNewDefaultSources } from './config.js';
-import { DEFAULT_TREND_SOURCE_RELEASES, DEFAULT_TREND_SOURCES } from './default-sources.js';
-import { HostPacer, interleaveByHost } from './host-pacer.js';
-import { pickHighlights } from './highlights.js';
-import { buildTrendOverview } from './overview.js';
-import { ensureTrendCrawlerSchema } from './schema.js';
-import { shouldCrawlTrends } from './scheduler.js';
-import { crawlTrends } from './service.js';
-import { narouOrder, narouRequestUrl, parseNarouRanking } from './sources/narou-source.js';
-import { TREND_GENRES, type RawTrendItem, type TrendCrawlerConfig, type TrendSource, type TrendSourceView } from './types.js';
+import { DEFAULT_TREND_CRAWLER_CONFIG, getTrendCrawlerConfig, setTrendCrawlerConfig, trendCrawlerConfigSchema, withNewDefaultSources } from './config.ts';
+import { DEFAULT_TREND_SOURCE_RELEASES, DEFAULT_TREND_SOURCES } from './default-sources.ts';
+import { HostPacer, interleaveByHost } from './host-pacer.ts';
+import { pickHighlights } from './highlights.ts';
+import { buildTrendOverview } from './overview.ts';
+import { ensureTrendCrawlerSchema } from './schema.ts';
+import { shouldCrawlTrends } from './scheduler.ts';
+import { crawlTrends } from './service.ts';
+import { narouOrder, narouRequestUrl, parseNarouRanking } from './sources/narou-source.ts';
+import { TREND_GENRES, type RawTrendItem, type TrendCrawlerConfig, type TrendSource, type TrendSourceView } from './types.ts';
 
 const SOURCES: TrendSource[] = [
   { id: 'google', name: 'Google', genre: 'general', kind: 'rss', url: 'https://trends.example/rss', enabled: true },

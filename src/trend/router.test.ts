@@ -3,12 +3,12 @@ import { test } from 'node:test';
 import Database from 'better-sqlite3';
 import type BetterSqlite3 from 'better-sqlite3';
 import type { Hono } from 'hono';
-import { TrendCrawlCoordinator } from './coordinator.js';
-import { makeTrendCrawlerRouter } from './router.js';
-import { clickStats, getInterestPrefs } from './interest-store.js';
-import { ensureTrendCrawlerSchema } from './schema.js';
-import type { TrendMap } from './map.js';
-import type { TrendCrawlResult, TrendOverview } from './types.js';
+import { TrendCrawlCoordinator } from './coordinator.ts';
+import { makeTrendCrawlerRouter } from './router.ts';
+import { clickStats, getInterestPrefs } from './interest-store.ts';
+import { ensureTrendCrawlerSchema } from './schema.ts';
+import type { TrendMap } from './map.ts';
+import type { TrendCrawlResult, TrendOverview } from './types.ts';
 
 type Db = BetterSqlite3.Database;
 

@@ -4,12 +4,12 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { serve } from '@hono/node-server';
-import { AccessGate, publicEntrance } from './runtime/access-gate.js';
-import { makeApp } from './runtime/app.js';
-import { CfAccessVerifier, readCfAccessConfig } from './runtime/cf-access.js';
-import { readRuntimeConfig } from './runtime/config.js';
-import { openDatabase } from './runtime/db.js';
-import { startTrendCrawlerScheduler } from './trend/scheduler.js';
+import { AccessGate, publicEntrance } from './runtime/access-gate.ts';
+import { makeApp } from './runtime/app.ts';
+import { CfAccessVerifier, readCfAccessConfig } from './runtime/cf-access.ts';
+import { readRuntimeConfig } from './runtime/config.ts';
+import { openDatabase } from './runtime/db.ts';
+import { startTrendCrawlerScheduler } from './trend/scheduler.ts';
 
 // dist/server.js から見たリポジトリ直下。
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');

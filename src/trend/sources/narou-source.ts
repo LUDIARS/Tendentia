@@ -1,7 +1,7 @@
 // 小説家になろうの公式 API (https://api.syosetu.com/novelapi/api/) の結果を順位付きの一覧に変える。
 // 先頭要素は {allcount} なので飛ばす。 並び順 (order=dailypoint 等) はリクエスト URL で決める。
 
-import type { RawTrendItem } from '../types.js';
+import type { RawTrendItem } from '../types.ts';
 
 export const NAROU_API_HOST = 'api.syosetu.com';
 

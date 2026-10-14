@@ -1,8 +1,8 @@
 // trend_snapshots / trend_items の読み書き。 業務判断 (動きの判定など) は movement.ts に置き、 ここは SQL だけ。
 
 import type BetterSqlite3 from 'better-sqlite3';
-import { trendKey } from './movement.js';
-import type { RawTrendItem, TrendGenre } from './types.js';
+import { trendKey } from './movement.ts';
+import type { RawTrendItem, TrendGenre } from './types.ts';
 
 type Db = BetterSqlite3.Database;
 

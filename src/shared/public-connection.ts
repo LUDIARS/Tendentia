@@ -3,7 +3,7 @@ import { isIP } from 'node:net';
 import { request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
 import { Readable } from 'node:stream';
-import { BlockedUrlError, isBlockedAddress } from './public-url.js';
+import { BlockedUrlError, isBlockedAddress } from './public-url.ts';
 
 type Address = { address: string; family: number };
 export type PublicLookup = (hostname: string) => Promise<Address[]>;

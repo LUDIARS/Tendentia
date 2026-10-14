@@ -12,7 +12,9 @@ LUDIARS 短縮コード: **Td**。トレンドの集積とトレンドマップ�
 ## 構成の約束
 
 - ポート番号は `excubitor.catalog.yaml` が正本。コードに既定値を持たない。
-- 常駐は事前ビルド (`npm run build`) した `node dist/server.js`。tsx を常駐させない。
+- 常駐は事前ビルド (`npm run build`) した `node dist/server.js`。tsx は使わない (2026-10-14 neco)。テストは Node 24+ の
+  型除去で `node --test` が `.ts` を直接読む。相対 import は `.ts` 拡張子で書き、型だけの import は `import type`。
+  enum・引数プロパティ (`constructor(private x)`) など消せない構文は使わない (tsconfig の `erasableSyntaxOnly` で検出)。
 - LLM は使わない (注目は決まったルールで選ぶ)。
 - 個人データ (開いた記録・興味の設定) は `data/tendentia.db` に閉じる。
 - 表を変えたら `scripts/site/data-bundle.mjs` の `SCHEMA_SQL` も合わせる (一致はテストで確かめる)。

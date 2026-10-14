@@ -2,8 +2,8 @@
 
 import type BetterSqlite3 from 'better-sqlite3';
 import { z } from 'zod';
-import { DEFAULT_INTEREST_PREFS, type ClickStats, type TrendInterestPrefs } from './interest.js';
-import { TREND_GENRES, type TrendGenre } from './types.js';
+import { DEFAULT_INTEREST_PREFS, type ClickStats, type TrendInterestPrefs } from './interest.ts';
+import { TREND_GENRES, type TrendGenre } from './types.ts';
 
 type Db = BetterSqlite3.Database;
 

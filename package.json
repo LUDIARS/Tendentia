@@ -5,13 +5,13 @@
   "description": "Tendentia (Td): いろいろなジャンルのトレンドを定期巡回して集め、興味の度合いで大きさが変わるマップで見せる。",
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   },
   "scripts": {
     "build": "node scripts/build.mjs",
     "start": "node dist/server.js",
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.web.json",
-    "test": "node --import tsx --test \"src/**/*.test.ts\" \"scripts/**/*.test.mjs\""
+    "test": "node --test \"src/**/*.test.ts\" \"scripts/**/*.test.mjs\""
   },
   "dependencies": {
     "@hono/node-server": "^1.19.17",
@@ -24,7 +24,6 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^24.0.0",
     "esbuild": "^0.28.2",
-    "tsx": "^4.23.13",
     "typescript": "^5.9.0"
   }
 }

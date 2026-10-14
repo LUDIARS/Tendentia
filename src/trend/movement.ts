@@ -1,6 +1,6 @@
 // 前回の取得と比べた順位の動き、 複数ソースに出ている話題の判定。 DB を知らない純関数だけを置く。
 
-import type { RawTrendItem, TrendCrossHit, TrendGenre, TrendMovement } from './types.js';
+import type { RawTrendItem, TrendCrossHit, TrendGenre, TrendMovement } from './types.ts';
 
 /** 比較用キー。 全角/半角・大小文字・空白と記号の差を畳む。 */
 export function trendKey(title: string): string {

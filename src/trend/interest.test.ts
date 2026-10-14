@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import Database from 'better-sqlite3';
-import { DEFAULT_INTEREST_PREFS, matchedKeywords, normalizeScores, scoreInterest, trendStrength, type ClickStats, type InterestInput } from './interest.js';
-import { clickStats, getInterestPrefs, interestPrefsSchema, pruneClicksBefore, recordClick, setInterestPrefs } from './interest-store.js';
-import { buildTrendMap } from './map.js';
-import { trendKey } from './movement.js';
-import { ensureTrendCrawlerSchema } from './schema.js';
-import type { TrendItemView, TrendOverview } from './types.js';
+import { DEFAULT_INTEREST_PREFS, matchedKeywords, normalizeScores, scoreInterest, trendStrength, type ClickStats, type InterestInput } from './interest.ts';
+import { clickStats, getInterestPrefs, interestPrefsSchema, pruneClicksBefore, recordClick, setInterestPrefs } from './interest-store.ts';
+import { buildTrendMap } from './map.ts';
+import { trendKey } from './movement.ts';
+import { ensureTrendCrawlerSchema } from './schema.ts';
+import type { TrendItemView, TrendOverview } from './types.ts';
 
 const NO_CLICKS: ClickStats = { total: 0, byGenre: new Map(), byKey: new Map() };
 

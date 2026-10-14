@@ -1,7 +1,7 @@
 // トレンドマップの表示データ。 一覧 (overview) の各ソース上位を 1 枚ずつのタイルにし、 興味の度合い (0〜1) を付ける。
 
-import { normalizeScores, scoreInterest, genreWeight, type ClickStats, type TrendInterestPrefs } from './interest.js';
-import { GENRE_LABELS, type TrendGenre, type TrendMovement, type TrendOverview } from './types.js';
+import { normalizeScores, scoreInterest, genreWeight, type ClickStats, type TrendInterestPrefs } from './interest.ts';
+import { GENRE_LABELS, type TrendGenre, type TrendMovement, type TrendOverview } from './types.ts';
 
 /** 1 ソースからマップに載せる件数。 多すぎると小さいタイルが画面を埋める。 */
 export const MAP_ITEMS_PER_SOURCE = 8;

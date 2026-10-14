@@ -3,8 +3,8 @@
 
 import type BetterSqlite3 from 'better-sqlite3';
 import { z } from 'zod';
-import { DEFAULT_TREND_SOURCE_RELEASES, DEFAULT_TREND_SOURCES } from './default-sources.js';
-import { TREND_GENRES, TREND_SOURCE_KINDS, type TrendCrawlerConfig, type TrendSource } from './types.js';
+import { DEFAULT_TREND_SOURCE_RELEASES, DEFAULT_TREND_SOURCES } from './default-sources.ts';
+import { TREND_GENRES, TREND_SOURCE_KINDS, type TrendCrawlerConfig, type TrendSource } from './types.ts';
 
 type Db = BetterSqlite3.Database;
 

@@ -22,7 +22,7 @@ services:
     repo: LUDIARS/Tendentia
     runtime: node
     cwd: ${ARS_ROOT}/Tendentia
-    # 常駐は事前ビルドした JS を node で直接起動する (tsx を常駐させない)。
+    # 常駐は事前ビルドした JS を node で直接起動する (tsx は使わない)。
     command: node dist/server.js
     build_command: npm run build
     allow_hot_reload: false

@@ -2,9 +2,9 @@
 // いろいろなジャンルのランキング・ニュースを定期巡回して、 ジャンル別に並べる。
 // 前回巡回との順位の動き (新登場 / ↑ / ↓)、 複数ソースに出ている話題、 ジャンルごとの注目 (決まったルールで選ぶ) を表示する。
 
-import { GENRE_LABELS, type TrendGenre } from './genres.js';
-import { escapeHtml } from './sanitize.js';
-import { loadTrendMap } from './trend-map-view.js';
+import { GENRE_LABELS, type TrendGenre } from './genres.ts';
+import { escapeHtml } from './sanitize.ts';
+import { loadTrendMap } from './trend-map-view.ts';
 
 type SourceKind = 'rss' | 'apple_top' | 'wikipedia_top' | 'anilist_anime' | 'anilist_manga' | 'hn_top' | 'narou_ranking';
 type MovementStatus = 'new' | 'up' | 'down' | 'same' | 'unknown';

@@ -4,7 +4,7 @@
 // Elegantia src/runtime/cf-access.ts と Breviarium の設定の読み方を土台にした。
 
 import type { JsonWebKey } from 'node:crypto';
-import { decodeJwt, verifyRs256 } from './cf-jwt.js';
+import { decodeJwt, verifyRs256 } from './cf-jwt.ts';
 
 export interface CfAccessConfig {
   /** `https://<team>.cloudflareaccess.com` (JWT の iss と鍵の取得元)。 */
@@ -71,11 +71,15 @@ export class CfAccessVerifier {
   private fetchedAt = -Infinity;
   private inflight?: Promise<void>;
 
-  constructor(
-    private readonly config: CfAccessConfig,
-    private readonly fetchJwks: JwksFetcher = fetchJwksDefault,
-    private readonly now: () => number = () => Date.now(),
-  ) {}
+  private readonly config: CfAccessConfig;
+  private readonly fetchJwks: JwksFetcher;
+  private readonly now: () => number;
+
+  constructor(config: CfAccessConfig, fetchJwks: JwksFetcher = fetchJwksDefault, now: () => number = () => Date.now()) {
+    this.config = config;
+    this.fetchJwks = fetchJwks;
+    this.now = now;
+  }
 
   /** 正しい JWT なら利用者 (email) を返す。 不正・期限切れ・別アプリ向けは undefined。 例外は投げない。 */
   async verify(assertion: string | undefined): Promise<CfIdentity | undefined> {

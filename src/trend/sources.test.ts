@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { anilistQuery, parseAnilistTrending } from './sources/anilist-source.js';
-import { parseAppleTop } from './sources/apple-source.js';
-import { fetchTrendSource } from './sources/fetch-source.js';
-import { parseHnTopIds, toHnItems } from './sources/hackernews-source.js';
-import { decodeXmlEntities, parseTrendFeed } from './sources/rss-source.js';
-import { isTopicArticle, parseWikipediaTop, wikipediaTopUrl } from './sources/wikipedia-source.js';
-import type { TrendSource } from './types.js';
+import { anilistQuery, parseAnilistTrending } from './sources/anilist-source.ts';
+import { parseAppleTop } from './sources/apple-source.ts';
+import { fetchTrendSource } from './sources/fetch-source.ts';
+import { parseHnTopIds, toHnItems } from './sources/hackernews-source.ts';
+import { decodeXmlEntities, parseTrendFeed } from './sources/rss-source.ts';
+import { isTopicArticle, parseWikipediaTop, wikipediaTopUrl } from './sources/wikipedia-source.ts';
+import type { TrendSource } from './types.ts';
 
 const GOOGLE_TRENDS = `<?xml version="1.0" encoding="UTF-8"?>
 <rss xmlns:ht="https://trends.google.com/trending/rss" version="2.0"><channel><title>Daily Search Trends</title>

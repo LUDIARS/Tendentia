@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { findCrossHits, movementOf, rankMap, trendKey } from './movement.js';
+import { findCrossHits, movementOf, rankMap, trendKey } from './movement.ts';
 
 test('trendKey は全角/半角・大小文字・空白と記号の差を畳む', () => {
   assert.equal(trendKey('ＡＩ エージェント！'), trendKey('ai-エージェント'));

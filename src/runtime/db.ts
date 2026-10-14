@@ -3,7 +3,7 @@
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import Database from 'better-sqlite3';
-import { ensureTrendCrawlerSchema } from '../trend/schema.js';
+import { ensureTrendCrawlerSchema } from '../trend/schema.ts';
 
 export const DB_FILE = 'tendentia.db';
 

@@ -8,8 +8,8 @@
 // - それ以外は 403。
 
 import type { Context } from 'hono';
-import type { CfAccessVerifier } from './cf-access.js';
-import { isSameMachineRequest } from './local-request.js';
+import type { CfAccessVerifier } from './cf-access.ts';
+import { isSameMachineRequest } from './local-request.ts';
 
 export interface PublicEntrance {
   /** 公開 URL の Origin (https://tendentia.example.com)。 */
@@ -68,7 +68,11 @@ export interface AccessGateDeps {
 }
 
 export class AccessGate {
-  constructor(private readonly deps: AccessGateDeps) {}
+  private readonly deps: AccessGateDeps;
+
+  constructor(deps: AccessGateDeps) {
+    this.deps = deps;
+  }
 
   async decide(context: Context): Promise<AccessDecision> {
     const sameMachine = this.deps.sameMachine ?? isSameMachineRequest;

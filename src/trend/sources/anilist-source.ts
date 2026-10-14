@@ -1,6 +1,6 @@
 // AniList GraphQL (https://graphql.anilist.co) の TRENDING 順を順位付きの一覧に変える。
 
-import type { RawTrendItem } from '../types.js';
+import type { RawTrendItem } from '../types.ts';
 
 export const ANILIST_ENDPOINT = 'https://graphql.anilist.co';
 

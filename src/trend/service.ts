@@ -3,12 +3,12 @@
 // 同じサイトへは間隔を空けて取りに行く (host-pacer.ts)。
 
 import type BetterSqlite3 from 'better-sqlite3';
-import { getTrendCrawlerConfig } from './config.js';
-import { fetchTrendSource, type FetchSourceDeps } from './sources/fetch-source.js';
-import { HostPacer, interleaveByHost } from './host-pacer.js';
-import { CLICK_WINDOW_DAYS, pruneClicksBefore } from './interest-store.js';
-import { pruneSnapshotsBefore, recordSnapshot } from './store.js';
-import type { RawTrendItem, TrendCrawlResult, TrendSource } from './types.js';
+import { getTrendCrawlerConfig } from './config.ts';
+import { fetchTrendSource, type FetchSourceDeps } from './sources/fetch-source.ts';
+import { HostPacer, interleaveByHost } from './host-pacer.ts';
+import { CLICK_WINDOW_DAYS, pruneClicksBefore } from './interest-store.ts';
+import { pruneSnapshotsBefore, recordSnapshot } from './store.ts';
+import type { RawTrendItem, TrendCrawlResult, TrendSource } from './types.ts';
 
 type Db = BetterSqlite3.Database;
 

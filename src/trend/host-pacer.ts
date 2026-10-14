@@ -18,11 +18,15 @@ export function hostOf(url: string): string {
 export class HostPacer {
   private readonly lastAt = new Map<string, number>();
 
-  constructor(
-    private readonly sleep: Sleep = realSleep,
-    private readonly now: () => number = () => Date.now(),
-    private readonly defaultGapMs = DEFAULT_HOST_GAP_MS,
-  ) {}
+  private readonly sleep: Sleep;
+  private readonly now: () => number;
+  private readonly defaultGapMs: number;
+
+  constructor(sleep: Sleep = realSleep, now: () => number = () => Date.now(), defaultGapMs = DEFAULT_HOST_GAP_MS) {
+    this.sleep = sleep;
+    this.now = now;
+    this.defaultGapMs = defaultGapMs;
+  }
 
   gapFor(host: string): number {
     return STRICT_HOST_GAP_MS[host] ?? this.defaultGapMs;

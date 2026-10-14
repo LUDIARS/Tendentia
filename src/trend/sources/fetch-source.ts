@@ -3,14 +3,14 @@
 // 利用者が URL を変えられる取得 (GET) は SSRF ガード付きの fetchPublicText を通す。
 // AniList は固定の公式エンドポイントへの POST なので通常の fetch を使う。
 
-import { fetchPublicText, readBoundedBytes } from '../../shared/public-fetch.js';
-import type { RawTrendItem, TrendSource } from '../types.js';
-import { ANILIST_ENDPOINT, anilistQuery, parseAnilistTrending } from './anilist-source.js';
-import { parseAppleTop } from './apple-source.js';
-import { HN_API, parseHnTopIds, toHnItems } from './hackernews-source.js';
-import { narouOrder, narouRequestUrl, parseNarouRanking } from './narou-source.js';
-import { parseTrendFeed } from './rss-source.js';
-import { parseWikipediaTop, wikipediaTopUrl } from './wikipedia-source.js';
+import { fetchPublicText, readBoundedBytes } from '../../shared/public-fetch.ts';
+import type { RawTrendItem, TrendSource } from '../types.ts';
+import { ANILIST_ENDPOINT, anilistQuery, parseAnilistTrending } from './anilist-source.ts';
+import { parseAppleTop } from './apple-source.ts';
+import { HN_API, parseHnTopIds, toHnItems } from './hackernews-source.ts';
+import { narouOrder, narouRequestUrl, parseNarouRanking } from './narou-source.ts';
+import { parseTrendFeed } from './rss-source.ts';
+import { parseWikipediaTop, wikipediaTopUrl } from './wikipedia-source.ts';
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) TendentiaTrendCrawler/1.0';
 const JSON_ACCEPT = 'application/json, */*;q=0.5';

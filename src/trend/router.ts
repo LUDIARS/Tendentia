@@ -1,6 +1,6 @@
 import type BetterSqlite3 from 'better-sqlite3';
 import { Hono, type Context } from 'hono';
-import { isSameMachineRequest } from '../runtime/local-request.js';
+import { isSameMachineRequest } from '../runtime/local-request.ts';
 
 /** 要求を通すかどうか。 既定は同じ端末だけ (公開の入口は src/runtime/access-gate.ts が判定を差し替える)。 */
 export type TrendAuthorize = (context: Context) => Promise<{ ok: true; canEdit: boolean } | { ok: false; status: 403 | 503; reason: string }>;
@@ -13,14 +13,14 @@ import {
   getTrendCrawlerConfig,
   setTrendCrawlerConfig,
   trendCrawlerConfigSchema,
-} from './config.js';
-import { trendCrawlCoordinator, type TrendCrawlCoordinator } from './coordinator.js';
-import { clickInputSchema, clickStats, getInterestPrefs, interestPrefsSchema, recordClick, setInterestPrefs } from './interest-store.js';
-import type { TrendInterestPrefs } from './interest.js';
-import { buildTrendMap, type TrendMap } from './map.js';
-import { buildTrendOverview } from './overview.js';
-import { crawlTrends } from './service.js';
-import type { TrendCrawlerConfig, TrendCrawlResult, TrendGenre, TrendOverview } from './types.js';
+} from './config.ts';
+import { trendCrawlCoordinator, type TrendCrawlCoordinator } from './coordinator.ts';
+import { clickInputSchema, clickStats, getInterestPrefs, interestPrefsSchema, recordClick, setInterestPrefs } from './interest-store.ts';
+import type { TrendInterestPrefs } from './interest.ts';
+import { buildTrendMap, type TrendMap } from './map.ts';
+import { buildTrendOverview } from './overview.ts';
+import { crawlTrends } from './service.ts';
+import type { TrendCrawlerConfig, TrendCrawlResult, TrendGenre, TrendOverview } from './types.ts';
 
 type Db = BetterSqlite3.Database;
 

@@ -1,9 +1,9 @@
 import type BetterSqlite3 from 'better-sqlite3';
-import { getTrendCrawlerConfig } from './config.js';
-import { trendCrawlCoordinator, type TrendCrawlCoordinator } from './coordinator.js';
-import { crawlTrends } from './service.js';
-import { lastCrawledAt } from './store.js';
-import type { TrendCrawlerConfig, TrendCrawlResult } from './types.js';
+import { getTrendCrawlerConfig } from './config.ts';
+import { trendCrawlCoordinator, type TrendCrawlCoordinator } from './coordinator.ts';
+import { crawlTrends } from './service.ts';
+import { lastCrawledAt } from './store.ts';
+import type { TrendCrawlerConfig, TrendCrawlResult } from './types.ts';
 
 type Db = BetterSqlite3.Database;
 

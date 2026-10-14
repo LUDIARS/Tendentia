@@ -3,10 +3,10 @@ import { generateKeyPairSync, sign } from 'node:crypto';
 import { test } from 'node:test';
 import Database from 'better-sqlite3';
 import type { Context } from 'hono';
-import { AccessGate, matchesHost, parseAllowedHosts, parsePublicOrigin, publicEntrance } from './access-gate.js';
-import { makeApp } from './app.js';
-import { CfAccessVerifier, readCfAccessConfig, type CfAccessConfig } from './cf-access.js';
-import { ensureSchema } from './db.js';
+import { AccessGate, matchesHost, parseAllowedHosts, parsePublicOrigin, publicEntrance } from './access-gate.ts';
+import { makeApp } from './app.ts';
+import { CfAccessVerifier, readCfAccessConfig, type CfAccessConfig } from './cf-access.ts';
+import { ensureSchema } from './db.ts';
 
 const AUD = 'a'.repeat(64);
 const CONFIG: CfAccessConfig = { issuer: 'https://team.cloudflareaccess.com', audience: AUD };

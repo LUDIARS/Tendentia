@@ -3,8 +3,8 @@
 // 興味が強いほど大きく丸く (上位は円)、 弱いほど小さな角丸の四角になるが、 最小の大きさで必ず残る。
 // 興味 = ジャンルごとの興味の強さ・気になる言葉 (自分で決める) × よく開くジャンル・話題 (開いた記録から学ぶ)。
 
-import { genreHue, type TrendGenre } from './genres.js';
-import { escapeHtml } from './sanitize.js';
+import { genreHue, type TrendGenre } from './genres.ts';
+import { escapeHtml } from './sanitize.ts';
 
 type MovementStatus = 'new' | 'up' | 'down' | 'same' | 'unknown';
 

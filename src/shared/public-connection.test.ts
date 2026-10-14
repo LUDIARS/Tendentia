@@ -4,8 +4,8 @@ import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
 import type { request, RequestOptions, IncomingMessage } from 'node:http';
 import type { LookupFunction } from 'node:net';
-import { fetchPinnedPublicResponse, resolvePublicAddress } from './public-connection.js';
-import { fetchPublicText } from './public-fetch.js';
+import { fetchPinnedPublicResponse, resolvePublicAddress } from './public-connection.ts';
+import { fetchPublicText } from './public-fetch.ts';
 
 test('内部 IPv4/IPv6/tailnet と混合 DNS 応答を拒否する', async () => {
   for (const host of ['127.0.0.1', '10.1.2.3', '172.16.0.1', '192.168.1.1', '169.254.169.254',

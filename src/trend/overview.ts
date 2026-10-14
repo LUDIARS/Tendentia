@@ -1,9 +1,9 @@
 // 画面と AI 要約に渡す一覧を組み立てる。 ソースごとに最新の成功取得と前回を比べ、 ジャンル順に束ねる。
 
 import type BetterSqlite3 from 'better-sqlite3';
-import { pickHighlights } from './highlights.js';
-import { findCrossHits, movementOf, rankMap } from './movement.js';
-import { firstSeenByKey, lastCrawledAt, latestAttempt, latestOkSnapshots } from './store.js';
+import { pickHighlights } from './highlights.ts';
+import { findCrossHits, movementOf, rankMap } from './movement.ts';
+import { firstSeenByKey, lastCrawledAt, latestAttempt, latestOkSnapshots } from './store.ts';
 import {
   GENRE_LABELS,
   TREND_GENRES,
@@ -12,7 +12,7 @@ import {
   type TrendOverview,
   type TrendSource,
   type TrendSourceView,
-} from './types.js';
+} from './types.ts';
 
 type Db = BetterSqlite3.Database;
 

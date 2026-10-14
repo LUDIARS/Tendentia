@@ -3,7 +3,7 @@
 // 候補: 複数のサイトで話題 (cross)・新登場 (new)・3 位以上の急上昇 (up)。
 // 並べ方: 理由の重み (cross 3 / new 2 / up 1) の合計 → 順位の高い順。 同じ話題は 1 つにまとめる。
 
-import type { TrendHighlight, TrendHighlightReason, TrendSourceView } from './types.js';
+import type { TrendHighlight, TrendHighlightReason, TrendSourceView } from './types.ts';
 
 export const HIGHLIGHTS_PER_GENRE = 3;
 /** これ未満の順位上昇は「急上昇」と呼ばない。 */

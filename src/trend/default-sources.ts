@@ -1,7 +1,7 @@
 // 既定のトレンド取得先。 API キー不要で公開されている一覧・ランキングだけを使う。
 // 追加・無効化は画面の設定から行える。
 
-import type { TrendSource } from './types.js';
+import type { TrendSource } from './types.ts';
 
 const APPLE = 'https://rss.marketingtools.apple.com/api/v2/jp';
 const HATENA = 'https://b.hatena.ne.jp/hotentry';

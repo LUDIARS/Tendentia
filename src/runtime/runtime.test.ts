@@ -4,11 +4,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import Database from 'better-sqlite3';
-import { AccessGate } from './access-gate.js';
-import { makeApp } from './app.js';
-import { readRuntimeConfig } from './config.js';
-import { ensureSchema } from './db.js';
-import { staticEntry } from './static.js';
+import { AccessGate } from './access-gate.ts';
+import { makeApp } from './app.ts';
+import { readRuntimeConfig } from './config.ts';
+import { ensureSchema } from './db.ts';
+import { staticEntry } from './static.ts';
 
 test('設定はポートが必須で、 データの置き場所はリポジトリ直下からの相対も受ける', () => {
   assert.throws(() => readRuntimeConfig({}, '/repo'), /TENDENTIA_PORT/);

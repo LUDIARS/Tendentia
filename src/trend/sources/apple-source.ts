@@ -1,6 +1,6 @@
 // Apple のランキング JSON (rss.marketingtools.apple.com) を順位付きの一覧に変える。
 
-import type { RawTrendItem } from '../types.js';
+import type { RawTrendItem } from '../types.ts';
 
 interface AppleResult {
   name?: unknown;

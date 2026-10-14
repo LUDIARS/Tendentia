@@ -3,9 +3,9 @@
 
 import type BetterSqlite3 from 'better-sqlite3';
 import { Hono } from 'hono';
-import { makeTrendCrawlerRouter } from '../trend/router.js';
-import { AccessGate } from './access-gate.js';
-import { makeStaticHandler } from './static.js';
+import { makeTrendCrawlerRouter } from '../trend/router.ts';
+import { AccessGate } from './access-gate.ts';
+import { makeStaticHandler } from './static.ts';
 
 type Db = BetterSqlite3.Database;
 

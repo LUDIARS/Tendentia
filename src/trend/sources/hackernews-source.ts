@@ -1,6 +1,6 @@
 // Hacker News 公式 API (hacker-news.firebaseio.com) の topstories を順位付きの一覧に変える。
 
-import type { RawTrendItem } from '../types.js';
+import type { RawTrendItem } from '../types.ts';
 
 export const HN_API = 'https://hacker-news.firebaseio.com/v0';
 

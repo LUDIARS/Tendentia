@@ -1,4 +1,4 @@
-import { fetchPinnedPublicResponse } from './public-connection.js';
+import { fetchPinnedPublicResponse } from './public-connection.ts';
 
 const MAX_REDIRECTS = 5;
 const DEFAULT_MAX_BYTES = 4 * 1024 * 1024;
