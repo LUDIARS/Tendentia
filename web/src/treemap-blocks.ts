@@ -66,7 +66,7 @@ export function groupByGenre(tiles: readonly TreemapTile[], genres: readonly Tre
 /** 重み 1 (興味が最大) のワード 1 つに使う面積 (px²)。 だいたい 100 × 100。 全ジャンル共通の物差し。 */
 const UNIT_AREA = 10_000;
 
-/** 全体の高さ。 ブロックの重みの合計 × 物差しの面積を幅で割る (少なくとも幅の 1.2 倍、 多くても 6 倍)。 */
+/** 全体の高さ。 ブロックの重みの合計 × 物差しの面積を幅で割る (少なくとも幅の 1.2 倍 (PC の横長画面では 640px)、 多くても 6 倍)。 */
 export function treemapHeight(width: number, totalWeight: number): number {
-  return Math.round(Math.min(width * 6, Math.max(width * 1.2, (totalWeight * UNIT_AREA) / width)));
+  return Math.round(Math.min(width * 6, Math.max(Math.min(width * 1.2, 640), (totalWeight * UNIT_AREA) / width)));
 }

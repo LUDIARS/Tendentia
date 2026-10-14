@@ -3,6 +3,7 @@
 
 import type BetterSqlite3 from 'better-sqlite3';
 import { Hono } from 'hono';
+import { compress } from 'hono/compress';
 import { makeSyncRouter } from '../trend/replica/router.ts';
 import { makeTrendCrawlerRouter, type TrendAuthorize } from '../trend/router.ts';
 import { AccessGate } from './access-gate.ts';
@@ -25,6 +26,8 @@ export interface AppDeps {
 
 export function makeApp(deps: AppDeps): Hono {
   const app = new Hono();
+  // 一覧 (700KB ほど) とマップの JSON・画面のファイルを gzip で送る (2026-10-14 neco「返す速度を早くする」)。 1KB 未満は送るまま。
+  app.use('*', compress({ threshold: 1024 }));
   const gate = deps.gate ?? new AccessGate({ entrance: { origin: null, hosts: [] } });
   app.get('/health', (context) => context.json({ ok: true, service: 'tendentia', version: deps.version }));
   const authorize: TrendAuthorize = (context, scope) => gate.decide(context, scope);

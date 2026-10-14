@@ -22,8 +22,13 @@ const result: TrendCrawlResult = { crawledAt: '2026-10-14T00:00:00.000Z', ok: 1,
 const overview: TrendOverview = { lastCrawledAt: null, crossHits: [], genres: [] };
 const postInit = { method: 'POST', headers: { Origin: 'http://localhost' } };
 
+
+/** 偽の DB では版を問い合わせられないので、 毎回「データが変わった」扱いにする。 */
+let versionSeq = 0;
+const alwaysNew = { data: () => String(versionSeq += 1), map: () => String(versionSeq += 1) };
+
 test('trend-crawler API は同一端末のリクエストだけ通す', async () => {
-  const app = makeTrendCrawlerRouter({ db: {} as Db, coordinator: new TrendCrawlCoordinator(), crawl: async () => result, overview: () => overview });
+  const app = makeTrendCrawlerRouter({ versions: alwaysNew, db: {} as Db, coordinator: new TrendCrawlCoordinator(), crawl: async () => result, overview: () => overview });
   assert.equal((await requestFrom(app, '192.168.1.25', 'http://localhost/api/trend-crawler/overview')).status, 403);
   const response = await requestFrom(app, '127.0.0.1', 'http://localhost/api/trend-crawler/overview');
   assert.equal(response.status, 200);
@@ -34,6 +39,7 @@ test('巡回中の手動更新は 409 にする', async () => {
   let finish: ((r: TrendCrawlResult) => void) | undefined;
   let calls = 0;
   const app = makeTrendCrawlerRouter({
+    versions: alwaysNew,
     db: {} as Db,
     coordinator: new TrendCrawlCoordinator(),
     overview: () => overview,
@@ -64,7 +70,7 @@ function memoryDb(): Db {
 test('マップ・興味・開いた記録の API', async () => {
   const db = memoryDb();
   const map: TrendMap = { lastCrawledAt: null, prefs: { genreWeights: {}, keywords: [] }, genres: [], tiles: [] };
-  const app = makeTrendCrawlerRouter({ db, coordinator: new TrendCrawlCoordinator(), overview: () => overview, map: () => map });
+  const app = makeTrendCrawlerRouter({ versions: alwaysNew, db, coordinator: new TrendCrawlCoordinator(), overview: () => overview, map: () => map });
   const got = await requestFrom(app, '127.0.0.1', 'http://localhost/api/trend-crawler/map');
   assert.deepEqual(await got.json(), { map, busy: false });
 

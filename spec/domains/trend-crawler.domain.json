@@ -30,6 +30,9 @@
       "pathPattern": "(^|/)web/src/treemap-(layout|blocks)\\.ts$"
     },
     {
+      "pathPattern": "(^|/)web/src/map-presets\\.ts$"
+    },
+    {
       "pathPattern": "(^|/)web/test/[^/]+\\.ts$"
     },
     {

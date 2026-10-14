@@ -47,3 +47,15 @@ test('health と画面を返す', async () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('大きな応答は gzip で送り、 同じデータなら一覧は組み立て直さない', async () => {
+  const db = new Database(':memory:');
+  ensureSchema(db);
+  const app = makeApp({ db, webDir: 'Z:/no-such-dir', version: '0.1.0', gate: new AccessGate({ entrance: { origin: null, hosts: [] }, sameMachine: () => true }) });
+  const big = await app.request('http://127.0.0.1/api/trend-crawler/config', { headers: { 'accept-encoding': 'gzip' } });
+  assert.equal(big.headers.get('content-encoding'), 'gzip');
+  const first = await (await app.request('http://127.0.0.1/api/trend-crawler/overview')).text();
+  const second = await (await app.request('http://127.0.0.1/api/trend-crawler/overview')).text();
+  assert.equal(second, first);
+  assert.equal(JSON.parse(first).busy, false);
+});

@@ -1,9 +1,13 @@
-// トレンド画面 > マップ表示。
-// トレンド 1 つ 1 つを図形で並べる。 色 = ジャンル、 大きさと丸さ = 興味の度合い。
-// 興味が強いほど大きく丸く (上位は円)、 弱いほど小さな角丸の四角になるが、 最小の大きさで必ず残る。
+// トレンド画面 > マップ表示。 市場規模マップの形で、 ジャンルごとのブロックに注目ワードを並べる (PC もスマホも同じ)。
+// 色 = ジャンル、 広さ = 興味の度合い (全ジャンル共通の物差し。 trend-treemap-view.ts / treemap-blocks.ts)。
 // 興味 = ジャンルごとの興味の強さ・気になる言葉 (自分で決める) × よく開くジャンル・話題 (開いた記録から学ぶ)。
+// ジャンルは複数を組み合わせて選べ (既定は全部)、 その選び方を「マップ」として名前を付けて 5 つまで保存できる (クッキー)。
 
 import { genreHue, type TrendGenre } from './genres.ts';
+import {
+  addMap, clearGenres, focusGenre, MAX_MAPS, MAX_NAME_LENGTH, presetsCookie, readPresetsCookie, removeMap, renameMap,
+  selectAll, selectedGenres, switchMap, toggleGenre, type MapPresets,
+} from './map-presets.ts';
 import { escapeHtml } from './sanitize.ts';
 import { renderTreemap } from './trend-treemap-view.ts';
 
@@ -43,13 +47,6 @@ interface TrendMap {
   tiles: TrendMapTile[];
 }
 
-/** 興味 0 のときの一辺 (px)。 これより小さくはしない = 消えない。 */
-const MIN_SIZE = 64;
-/** 興味 1 のときに足す大きさ (px)。 */
-const SIZE_RANGE = 80;
-/** これ以上の興味は円にする。 */
-const CIRCLE_FROM = 0.75;
-
 const WEIGHT_STEPS: { value: number; label: string }[] = [
   { value: 0, label: 'ほぼ興味なし' },
   { value: 0.5, label: '少し' },
@@ -59,15 +56,13 @@ const WEIGHT_STEPS: { value: number; label: string }[] = [
 ];
 
 let current: TrendMap | null = null;
-let selectedGenre: TrendGenre | 'all' = 'all';
+let presets: MapPresets | null = null;
+/** 名前を変えている途中のマップ (その見出しを入力欄にする)。 */
+let renaming: number | null = null;
 let root: HTMLElement | null = null;
 /** 公開 URL からの閲覧 (ログインしていない) では false。 興味の設定と開いた記録を送らない。 */
 let editable = true;
-
-/** これより狭い画面 (スマホ) では、 円の代わりにジャンル別ブロック (ツリーマップ) で見せる。 */
-const NARROW = '(max-width: 640px)';
-const isNarrow = (): boolean => typeof matchMedia === 'function' && matchMedia(NARROW).matches;
-let narrowWatched = false;
+let resizeWatched = false;
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, init);
@@ -76,34 +71,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body;
 }
 
-/** 興味 (0〜1) から図形の大きさと角の丸さを決める。 */
-export function tileGeometry(interest: number): { width: number; height: number; radius: string; fontSize: number } {
-  const i = Math.min(1, Math.max(0, interest));
-  const size = Math.round(MIN_SIZE + SIZE_RANGE * i);
-  const fontSize = Math.round(11 + 5 * i);
-  if (i >= CIRCLE_FROM) return { width: size, height: size, radius: '50%', fontSize };
-  // 興味が上がるほど角が丸くなり、 横長から正方形へ近づく。
-  const width = Math.round(size * (1.7 - 0.6 * i));
-  const height = Math.round(size * (0.7 + 0.2 * i));
-  return { width, height, radius: `${Math.round(8 + 22 * i)}px`, fontSize };
-}
+const allGenreIds = (map: TrendMap): string[] => map.genres.map((genre) => genre.genre);
 
-function tileHtml(tile: TrendMapTile, index: number): string {
-  const g = tileGeometry(tile.interest);
-  const why = [
-    `${tile.sourceName} ${tile.rank}位`,
-    tile.metric ?? '',
-    tile.reasons.length ? `大きさの理由: ${tile.reasons.join(' / ')}` : '',
-    `興味 ${Math.round(tile.interest * 100)}%`,
-  ].filter(Boolean).join('\n');
-  const badge = tile.movement.status === 'new' ? '<span class="tm-badge">NEW</span>'
-    : tile.movement.status === 'up' ? `<span class="tm-badge tm-badge-up">↑${tile.movement.delta}</span>` : '';
-  const style = `--tm-h:${genreHue(tile.genre)};width:${g.width}px;height:${g.height}px;border-radius:${g.radius};font-size:${g.fontSize}px`;
-  const inner = `${badge}<span class="tm-title">${escapeHtml(tile.title)}</span>`;
-  const attrs = `class="tm-tile" style="${style}" title="${escapeHtml(`${tile.title}\n${why}`)}" data-index="${index}"`;
-  return tile.url
-    ? `<a ${attrs} href="${escapeHtml(tile.url)}" target="_blank" rel="noopener noreferrer">${inner}</a>`
-    : `<div ${attrs}>${inner}</div>`;
+/** マップの選び方を変えたら、 すぐクッキーに残して描き直す。 */
+function update(next: MapPresets): void {
+  presets = next;
+  try {
+    document.cookie = presetsCookie(next, location.protocol === 'https:');
+  } catch { /* クッキーが使えなくても画面は動かす */ }
+  render();
 }
 
 function weightOptions(weight: number): string {
@@ -111,54 +87,70 @@ function weightOptions(weight: number): string {
     `<option value="${step.value}"${step.value === weight ? ' selected' : ''}>${escapeHtml(step.label)}</option>`).join('');
 }
 
-function legendHtml(map: TrendMap): string {
+function mapTabsHtml(state: MapPresets): string {
+  const tabs = state.maps.map((preset, index) => {
+    if (index === renaming) {
+      return `<span class="tm-map-tab active"><input id="trendMapRename" type="text" maxlength="${MAX_NAME_LENGTH}" value="${escapeHtml(preset.name)}" aria-label="マップの名前">
+        <button type="button" id="trendMapRenameSave" class="ghost">決定</button></span>`;
+    }
+    const active = index === state.active;
+    return `<span class="tm-map-tab${active ? ' active' : ''}">
+        <button type="button" class="tm-map-open" data-map="${index}">${escapeHtml(preset.name)}</button>
+        ${active ? `<button type="button" class="tm-map-icon" data-rename="${index}" title="名前を変える" aria-label="名前を変える">✎</button>` : ''}
+        ${active && state.maps.length > 1 ? `<button type="button" class="tm-map-icon" data-remove="${index}" title="このマップを消す" aria-label="このマップを消す">×</button>` : ''}
+      </span>`;
+  }).join('');
+  const add = state.maps.length < MAX_MAPS
+    ? `<button type="button" class="tm-map-add ghost" id="trendMapAdd" title="マップを足す (${MAX_MAPS} つまで)">＋ マップ</button>` : '';
+  return `<div class="tm-maps" role="tablist" aria-label="保存したマップ">${tabs}${add}</div>`;
+}
+
+function legendHtml(map: TrendMap, selected: Set<string>): string {
   const chips = map.genres.map((genre) => `<div class="tm-legend-item">
-      <button type="button" class="tm-chip${selectedGenre === genre.genre ? ' active' : ''}" style="--tm-h:${genreHue(genre.genre)}" data-genre="${genre.genre}" title="このジャンルだけ表示">${escapeHtml(genre.label)} <span class="muted">${genre.count}</span></button>
+      <button type="button" class="tm-chip${selected.has(genre.genre) ? ' active' : ''}" style="--tm-h:${genreHue(genre.genre)}" data-genre="${genre.genre}" aria-pressed="${selected.has(genre.genre)}" title="押すたびに選ぶ / 外す">${escapeHtml(genre.label)} <span class="muted">${genre.count}</span></button>
       <select class="tm-weight td-personal" data-genre="${genre.genre}" aria-label="${escapeHtml(genre.label)} の興味">${weightOptions(genre.weight)}</select>
     </div>`).join('');
   return `<div class="tm-legend">
-    <button type="button" class="tm-chip tm-chip-all${selectedGenre === 'all' ? ' active' : ''}" data-genre="all">すべて</button>
+    <button type="button" class="tm-chip tm-chip-all" id="trendMapAll">すべて</button>
+    <button type="button" class="tm-chip tm-chip-all" id="trendMapClear">クリア</button>
     ${chips}
   </div>`;
 }
 
 function render(): void {
-  if (!root || !current) return;
+  if (!root || !current || !presets) return;
   const map = current;
-  const tiles = selectedGenre === 'all' ? map.tiles : map.tiles.filter((tile) => tile.genre === selectedGenre);
-  const narrow = isNarrow();
-  const field = narrow
-    ? '<div class="tt-treemap" id="trendTreemap"></div>'
-    : `<div class="tm-field">${tiles.map((tile) => tileHtml(tile, map.tiles.indexOf(tile))).join('')}</div>`;
+  const selected = selectedGenres(presets.maps[presets.active], allGenreIds(map));
+  const genres = map.genres.filter((genre) => selected.has(genre.genre));
+  const hasTiles = map.tiles.some((tile) => selected.has(tile.genre));
+  const body = map.tiles.length === 0
+    ? '<div class="empty">まだトレンドがありません。「今すぐ巡回」を押すか、 次の自動巡回を待ってください。</div>'
+    : hasTiles ? '<div class="tt-treemap" id="trendTreemap"></div>'
+      : '<div class="empty">ジャンルが選ばれていません。 上のジャンルを押すか「すべて」を押してください。</div>';
   root.innerHTML = `<div class="tm-view foundation-form">
-    <p class="tm-help muted">${narrow
-      ? '色はジャンル、 ブロックの広さは興味の度合いです。 ジャンル名を押すとそのジャンルだけ表示します。'
-      : '色はジャンル、 大きさと丸さは興味の度合いです。 ジャンルごとの興味と気になる言葉で大きさが変わり、 開いた話題やよく開くジャンルも少しずつ大きくなります。 興味が薄いものも小さく残ります。'}</p>
-    ${legendHtml(map)}
+    ${mapTabsHtml(presets)}
+    <p class="tm-help muted">色はジャンル、 広さは興味の度合いです。 ジャンルは押すたびに選ぶ / 外すを切り替え、 いくつでも組み合わせられます。 選び方はマップごとにこのブラウザへ保存されます。</p>
+    ${legendHtml(map, selected)}
     <div class="tm-keywords td-personal">
       <label><span>気になる言葉 (読点・カンマ・改行で区切る)</span><input id="trendMapKeywords" type="text" maxlength="800" value="${escapeHtml(map.prefs.keywords.join('、'))}" placeholder="例: AI、ゲーム、ラーメン"></label>
       <button type="button" id="trendMapSaveKeywords">保存</button>
       <span id="trendMapStatus" class="muted"></span>
     </div>
-    ${tiles.length ? field
-      : '<div class="empty">まだトレンドがありません。「今すぐ巡回」を押すか、 次の自動巡回を待ってください。</div>'}
+    ${body}
   </div>`;
   bind();
   const treemap = document.getElementById('trendTreemap');
-  if (treemap && tiles.length) {
-    // ジャンルを 1 つに絞っているときは、 そのジャンルのブロック 1 つが画面いっぱいに広がる。
-    const genres = map.genres.filter((genre) => selectedGenre === 'all' || genre.genre === selectedGenre);
+  if (treemap) {
     renderTreemap(treemap, map.tiles, genres, {
       onOpen: (index) => {
         const tile = map.tiles[index];
         if (tile && editable) recordClick(tile);
       },
-      onSelectGenre: (genre) => {
-        selectedGenre = selectedGenre === genre ? 'all' : genre;
-        render();
-      },
+      // ブロックのジャンル名を押すとそのジャンルだけ、 もう一度押すと全部に戻る。
+      onSelectGenre: (genre) => { if (presets) update(focusGenre(presets, genre)); },
     });
   }
+  document.getElementById('trendMapRename')?.focus();
 }
 
 function setStatus(text: string): void {
@@ -193,14 +185,45 @@ export function parseKeywords(text: string): string[] {
   return [...new Set(text.split(/[、,，\n]/).map((word) => word.trim()).filter(Boolean))].slice(0, 50);
 }
 
+function finishRename(): void {
+  const input = document.getElementById('trendMapRename') as HTMLInputElement | null;
+  if (!presets || renaming === null || !input) return;
+  const index = renaming;
+  renaming = null;
+  update(renameMap(presets, index, input.value));
+}
+
+function bindMaps(): void {
+  if (!root) return;
+  root.querySelectorAll<HTMLButtonElement>('.tm-map-open[data-map]').forEach((button) => {
+    button.addEventListener('click', () => { if (presets) update(switchMap(presets, Number(button.dataset.map))); });
+  });
+  root.querySelectorAll<HTMLButtonElement>('[data-rename]').forEach((button) => {
+    button.addEventListener('click', () => { renaming = Number(button.dataset.rename); render(); });
+  });
+  root.querySelectorAll<HTMLButtonElement>('[data-remove]').forEach((button) => {
+    button.addEventListener('click', () => { if (presets) update(removeMap(presets, Number(button.dataset.remove))); });
+  });
+  document.getElementById('trendMapAdd')?.addEventListener('click', () => { if (presets) update(addMap(presets)); });
+  document.getElementById('trendMapRenameSave')?.addEventListener('click', finishRename);
+  const input = document.getElementById('trendMapRename') as HTMLInputElement | null;
+  input?.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') finishRename();
+    if (event.key === 'Escape') { renaming = null; render(); }
+  });
+}
+
 function bind(): void {
   if (!root || !current) return;
+  const map = current;
+  bindMaps();
   root.querySelectorAll<HTMLButtonElement>('.tm-chip[data-genre]').forEach((button) => {
     button.addEventListener('click', () => {
-      selectedGenre = button.dataset.genre as TrendGenre | 'all';
-      render();
+      if (presets) update(toggleGenre(presets, button.dataset.genre ?? '', allGenreIds(map)));
     });
   });
+  document.getElementById('trendMapAll')?.addEventListener('click', () => { if (presets) update(selectAll(presets)); });
+  document.getElementById('trendMapClear')?.addEventListener('click', () => { if (presets) update(clearGenres(presets)); });
   root.querySelectorAll<HTMLSelectElement>('.tm-weight').forEach((select) => {
     select.addEventListener('change', () => {
       if (!current) return;
@@ -214,28 +237,29 @@ function bind(): void {
     const input = document.getElementById('trendMapKeywords') as HTMLInputElement | null;
     void savePrefs({ ...current.prefs, keywords: parseKeywords(input?.value ?? '') });
   });
-  root.querySelectorAll<HTMLElement>('.tm-tile[data-index]').forEach((element) => {
-    element.addEventListener('click', () => {
-      const tile = current?.tiles[Number(element.dataset.index)];
-      if (tile && editable) recordClick(tile);
-    });
-  });
 }
 
 async function reload(): Promise<void> {
   const response = await request<{ map: TrendMap }>('/api/trend-crawler/map');
   current = response.map;
-  if (selectedGenre !== 'all' && !current.genres.some((genre) => genre.genre === selectedGenre)) selectedGenre = 'all';
+  presets ??= readPresetsCookie(document.cookie, allGenreIds(current));
   render();
 }
 
 export async function loadTrendMap(container: HTMLElement, canEdit = true): Promise<void> {
   root = container;
   editable = canEdit;
-  if (!narrowWatched && typeof matchMedia === 'function') {
-    // 画面の向きや幅が変わって円とブロックが入れ替わるときだけ描き直す。
-    narrowWatched = true;
-    matchMedia(NARROW).addEventListener('change', () => render());
+  if (!resizeWatched) {
+    // 画面の幅が変わったらブロックを敷き直す (向きの変更・ウィンドウの大きさ)。 続けて来る分はまとめる。
+    resizeWatched = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let lastWidth = window.innerWidth;
+    window.addEventListener('resize', () => {
+      if (window.innerWidth === lastWidth) return;
+      lastWidth = window.innerWidth;
+      clearTimeout(timer);
+      timer = setTimeout(() => { if (renaming === null) render(); }, 200);
+    });
   }
   try {
     await reload();

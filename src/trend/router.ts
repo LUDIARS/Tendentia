@@ -30,6 +30,7 @@ import { clickInputSchema, clickStats, getInterestPrefs, interestPrefsSchema, re
 import type { TrendInterestPrefs } from './interest.ts';
 import { buildTrendMap, type TrendMap } from './map.ts';
 import { buildTrendOverview } from './overview.ts';
+import { ResponseCache, trendDataVersion, trendMapVersion } from './response-cache.ts';
 import { getUserPrefs, recordUserClick, setUserPrefs, userClickStats, userTendency } from './personal-store.ts';
 import { crawlTrends } from './service.ts';
 import type { TrendCrawlerConfig, TrendCrawlResult, TrendGenre, TrendOverview } from './types.ts';
@@ -43,7 +44,16 @@ export interface TrendCrawlerRouterDeps {
   map?: (db: Db, userId: string | null) => TrendMap;
   coordinator?: TrendCrawlCoordinator;
   authorize?: TrendAuthorize;
+  /** データの版の決め方 (同じ版なら覚えた応答を返す)。 既定は DB への軽い問い合わせ (response-cache.ts)。 */
+  versions?: TrendVersions;
 }
+
+export interface TrendVersions {
+  data: (db: Db) => string;
+  map: (db: Db, userId: string | null) => string;
+}
+
+const dbVersions: TrendVersions = { data: trendDataVersion, map: (db, userId) => trendMapVersion(db, userId) };
 
 /** 本人の好みを書き換える要求 (ログインした人は公開 URL からでも書ける)。 */
 function scopeOf(context: Context): TrendScope {
@@ -56,7 +66,16 @@ function scopeOf(context: Context): TrendScope {
 export function makeTrendCrawlerRouter(deps: TrendCrawlerRouterDeps): Hono {
   const router = new Hono();
   const crawl = deps.crawl ?? ((db: Db, onlySourceId?: string) => crawlTrends(db, new Date(), {}, onlySourceId));
-  const overview = deps.overview ?? ((db: Db) => buildTrendOverview(db, getTrendCrawlerConfig(db)));
+  const buildOverview = deps.overview ?? ((db: Db) => buildTrendOverview(db, getTrendCrawlerConfig(db)));
+  // 一覧は取得と設定が変わったときだけ組み立て直す (マップもこれを使う)。 応答の文字列も版ごとに覚える (response-cache.ts)。
+  const versions = deps.versions ?? dbVersions;
+  let overviewMemo: { version: string; value: TrendOverview } | null = null;
+  const overview = (db: Db): TrendOverview => {
+    const version = versions.data(db);
+    if (overviewMemo?.version !== version) overviewMemo = { version, value: buildOverview(db) };
+    return overviewMemo.value;
+  };
+  const responses = new ResponseCache();
   const coordinator = deps.coordinator ?? trendCrawlCoordinator;
   const authorize = deps.authorize ?? sameMachineOnly;
   // ログインした人には、 その人の興味と開いた記録だけで大きさを決めたマップを返す (偏向学習)。
@@ -100,14 +119,23 @@ export function makeTrendCrawlerRouter(deps: TrendCrawlerRouterDeps): Hono {
     return context.json(setTrendCrawlerConfig(deps.db, parsed.data as TrendCrawlerConfig));
   });
 
-  router.get('/api/trend-crawler/overview', (context: Context) => context.json({
-    overview: overview(deps.db),
-    busy: coordinator.busy,
-  }));
+  const json = (context: Context, body: string): Response => {
+    context.header('Content-Type', 'application/json; charset=UTF-8');
+    return context.body(body);
+  };
+
+  router.get('/api/trend-crawler/overview', (context: Context) => {
+    const busy = coordinator.busy;
+    const version = `${versions.data(deps.db)}|${busy}`;
+    return json(context, responses.get('overview', version, () => JSON.stringify({ overview: overview(deps.db), busy })));
+  });
 
   router.get('/api/trend-crawler/map', async (context: Context) => {
     const user = await userOf(context);
-    return context.json({ map: map(deps.db, user?.userId ?? null), busy: coordinator.busy });
+    const userId = user?.userId ?? null;
+    const busy = coordinator.busy;
+    const version = `${versions.map(deps.db, userId)}|${busy}`;
+    return json(context, responses.get(`map:${userId ?? ''}`, version, () => JSON.stringify({ map: map(deps.db, userId), busy })));
   });
 
   router.get('/api/trend-crawler/interest', async (context: Context) => {
