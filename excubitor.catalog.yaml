@@ -1,0 +1,20 @@
+# Excubitor catalog fragment -- Tendentia (サービス所有 catalog)。
+services:
+  - code: tendentia
+    name: Tendentia (Tendentia (Td): multi-genre trend crawler and interest-weighted trend map)
+    tier: personal
+    project_code: tendentia
+    component: backend
+    port: 4450
+    repo: LUDIARS/Tendentia
+    runtime: node
+    cwd: ${ARS_ROOT}/Tendentia
+    command: npm run dev
+    autostart: false
+    restart_policy: "no"
+    health:
+      type: http
+      url: http://localhost:4450/health
+      interval_sec: 30
+    provides:
+      TENDENTIA_URL: http://${host}:${port}
