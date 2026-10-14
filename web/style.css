@@ -162,3 +162,28 @@ button:disabled { opacity: 0.6; cursor: default; }
 
 /* 公開 URL からの閲覧 (変更できない) では、 操作の部品 (td-edit) を隠す。 */
 body[data-readonly="true"] .td-edit { display: none !important; }
+
+/* ログインしていない公開 URL からの閲覧では、 本人の好みの部品 (td-personal: 興味・気になる言葉) も隠す。 */
+body[data-personal="false"] .td-personal { display: none !important; }
+
+/* ログイン */
+.td-account { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.td-account-name { font-size: 13px; }
+
+/* あなたの傾向 */
+.tt-view { margin: 8px 0 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); }
+.tt-view summary { cursor: pointer; font-weight: 600; }
+.tt-view h3 { margin: 8px 0 6px; font-size: 13px; }
+.tt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.tt-genres, .tt-topics { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 12px; }
+.tt-topics { list-style: decimal; padding-left: 20px; }
+.tt-genres li { display: grid; grid-template-columns: minmax(70px, 7em) 1fr auto; gap: 8px; align-items: center; }
+.tt-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tt-bar { height: 10px; border-radius: 5px; background: var(--ghost-hover); overflow: hidden; }
+.tt-bar span { display: block; height: 100%; border-radius: 5px; background: hsl(var(--tm-h, 210) 65% 55%); }
+.tt-value { white-space: nowrap; }
+.tt-weekly { display: flex; align-items: flex-end; gap: 6px; height: 90px; }
+.tt-week { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; gap: 4px; min-width: 0; }
+.tt-week-bar { width: 100%; min-height: 2px; border-radius: 4px 4px 0 0; background: var(--accent); }
+.tt-week-label { font-size: 10px; }
+.tt-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: hsl(var(--tm-h, 210) 65% 55%); }

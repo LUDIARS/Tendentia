@@ -18,6 +18,9 @@
       "pathPattern": "(^|/)web/src/trend-crawler-view\\.ts$"
     },
     {
+      "pathPattern": "(^|/)web/src/tendency-view\\.ts$"
+    },
+    {
       "pathPattern": "(^|/)web/src/trend-map-view\\.ts$"
     },
     {
@@ -33,6 +36,8 @@
     "spec/feature/trend-crawler.md#巡回の間隔",
     "spec/feature/trend-crawler.md#トレンドマップ",
     "spec/feature/trend-crawler.md#写し",
-    "spec/feature/trend-crawler.md#制約"
+    "spec/feature/trend-crawler.md#制約",
+    "spec/feature/personal-login.md#学習と傾向",
+    "spec/feature/personal-login.md#決めたこと"
   ]
 }

@@ -21,6 +21,8 @@ export const clickInputSchema = z.object({
   key: z.string().min(1).max(200),
   genre: z.enum(TREND_GENRES as [string, ...string[]]),
   sourceId: z.string().min(1).max(80),
+  /** 話題のタイトル。 ログインした人の傾向 (よく開いた話題) にだけ使う。 */
+  title: z.string().max(1_000).optional(),
 });
 
 export function getInterestPrefs(db: Db): TrendInterestPrefs {

@@ -4,6 +4,8 @@
 
 import { GENRE_LABELS, type TrendGenre } from './genres.ts';
 import { escapeHtml } from './sanitize.ts';
+import { loadSession, renderAccount } from './account-view.ts';
+import { loadTendency } from './tendency-view.ts';
 import { loadTrendMap } from './trend-map-view.ts';
 
 type SourceKind = 'rss' | 'apple_top' | 'wikipedia_top' | 'anilist_anime' | 'anilist_manga' | 'hn_top' | 'narou_ranking';
@@ -122,22 +124,40 @@ function applyMode(): void {
   });
 }
 
-/** 変更 (巡回・設定・興味) ができるか。 公開 URL からの閲覧では false で、 印 (td-edit) の付いた操作を隠す。 */
+/** 変更 (巡回・設定) ができるか。 公開 URL からの閲覧では false で、 印 (td-edit) の付いた操作を隠す。 */
 let canEdit = true;
+/** 興味の設定と開いた記録を送れるか (同じ端末か、 ログインした人)。 false なら印 (td-personal) の付いた操作を隠す。 */
+let canPersonalize = true;
 
 async function loadAccess(): Promise<void> {
   try {
     const response = await fetch('/api/trend-crawler/access');
-    canEdit = response.ok && ((await response.json()) as { canEdit?: boolean }).canEdit === true;
+    const access = response.ok ? await response.json() as { canEdit?: boolean; canPersonalize?: boolean } : {};
+    canEdit = access.canEdit === true;
+    canPersonalize = access.canPersonalize === true;
   } catch {
     canEdit = false;
+    canPersonalize = false;
   }
   document.body.dataset.readonly = canEdit ? 'false' : 'true';
+  document.body.dataset.personal = canPersonalize ? 'true' : 'false';
+}
+
+/** ログイン / ログアウトの部品と、 ログインしていれば「あなたの傾向」を出す。 状態が変わったら全体を読み直す。 */
+async function loadAccount(): Promise<void> {
+  const account = document.getElementById('tdAccount');
+  const tendency = document.getElementById('trendTendency');
+  const session = await loadSession();
+  if (account) renderAccount(account, session, () => { void loadTrendCrawlerView(); });
+  if (tendency) {
+    if (session.user) await loadTendency(tendency);
+    else tendency.innerHTML = '';
+  }
 }
 
 async function loadMap(): Promise<void> {
   const container = document.getElementById('trendCrawlerMap');
-  if (container) await loadTrendMap(container, canEdit);
+  if (container) await loadTrendMap(container, canPersonalize);
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -419,9 +439,10 @@ function initialize(): void {
   element.innerHTML = `<div class="tc-view foundation-form">
     <header class="tc-header">
       <div><h2>📈 トレンド</h2><p>ニュース・株価・IT・AI・ガジェット・ゲーム・アニメ・マンガ・小説・芸能・ファッション・食品・外食・ネットミームなど 24 ジャンルのランキングとニュースを 3 時間ごとに巡回し、 前回からの順位の動きと注目をジャンル別に並べます。</p></div>
-      <div class="tc-header-actions"><button id="trendCrawlerRefresh" class="td-edit" type="button">今すぐ巡回</button><span id="trendCrawlerStatus" class="muted"></span></div>
+      <div class="tc-header-actions"><span id="tdAccount" class="td-account"></span><button id="trendCrawlerRefresh" class="td-edit" type="button">今すぐ巡回</button><span id="trendCrawlerStatus" class="muted"></span></div>
     </header>
     <nav class="tc-mode worklog-subtabs"><button type="button" class="wl-subtab" data-mode="map">🫧 マップ</button><button type="button" class="wl-subtab" data-mode="list">☰ リスト</button></nav>
+    <div id="trendTendency"></div>
     <div id="trendCrawlerMap"><div class="empty">読み込み中…</div></div>
     <div id="trendCrawlerOverview"><div class="empty">読み込み中…</div></div>
     <details class="tc-settings td-edit">
@@ -463,7 +484,7 @@ export async function loadTrendCrawlerView(): Promise<void> {
   initialize();
   await loadAccess();
   try {
-    await Promise.all([canEdit ? loadConfig() : Promise.resolve(), loadOverview(), loadMap()]);
+    await Promise.all([canEdit ? loadConfig() : Promise.resolve(), loadOverview(), loadMap(), loadAccount()]);
   } catch (error) {
     const output = document.getElementById('trendCrawlerOverview');
     if (output) output.innerHTML = `<div class="empty">読み込み失敗: ${escapeHtml(error instanceof Error ? error.message : String(error))}</div>`;

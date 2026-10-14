@@ -7,7 +7,8 @@
 # 2 つの役割 (2026-10-14 neco「Td は AWS に置きます」「巡回と収集は本社で」):
 # - tendentia (collector): 本社で巡回して集める。変更 (設定・巡回・興味) は本社の端末からだけ。
 #   公開 URL は tendentia-hq (閲覧だけ誰でも)。viewer はここの GET /api/sync/export から写しを取る。
-# - tendentia-viewer: AWS で本社の写しを見せるだけ。巡回も変更もしない。みんなが開く公開 URL は tendentia。
+# - tendentia-viewer: AWS で本社の写しを見せる。巡回もサイトの変更もしない。みんなが開く公開 URL は tendentia。
+#   Cernere でログインした人だけ、その人の好み (興味・開いた記録) を記録してマップを変える (spec/feature/personal-login.md)。
 # どちらも全公開 (Access なし)。Cloudflare Access を付けたときは JWT が正しい要求だけを通す (team / AUD は
 # Excubitor の runtime-config = EXCUBITOR_SERVICE_CONFIG_JSON の cloudflareAccess から受け取る)。
 # 公開 Host は Ex の global.env.LUDIARS_ALLOWED_HOSTS も受け取る (ここで上書きしない)。
@@ -86,5 +87,8 @@ services:
       TENDENTIA_SELF_URL: *tendentia_public_url
       # 写しを取りに行く本社の Tendentia (collector の公開 URL)。
       TENDENTIA_UPSTREAM_URL: *tendentia_hq_url
+      # Cernere でのログイン (画面が popup で開く公開 URL)。サーバからの接続先 CERNERE_URL は Cernere の provides から届く。
+      # Cernere 側は composite の許可 Origin に https://tendentia.ai-run-do.com を持つ (Cernere migration 064 / catalog)。
+      TENDENTIA_CERNERE_PUBLIC_URL: https://cr${DOMAIN_ROOT}
       # 写しの置き場所。同じ checkout で collector と並んでもぶつからないよう data-viewer/ に分ける (.gitignore 済み)。
       TENDENTIA_DATA_DIR: ${ARS_ROOT}/Tendentia/data-viewer

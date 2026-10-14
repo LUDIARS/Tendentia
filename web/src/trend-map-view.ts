@@ -60,7 +60,7 @@ const WEIGHT_STEPS: { value: number; label: string }[] = [
 let current: TrendMap | null = null;
 let selectedGenre: TrendGenre | 'all' = 'all';
 let root: HTMLElement | null = null;
-/** 公開 URL からの閲覧では false。 興味の設定と開いた記録を送らない。 */
+/** 公開 URL からの閲覧 (ログインしていない) では false。 興味の設定と開いた記録を送らない。 */
 let editable = true;
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -108,7 +108,7 @@ function weightOptions(weight: number): string {
 function legendHtml(map: TrendMap): string {
   const chips = map.genres.map((genre) => `<div class="tm-legend-item">
       <button type="button" class="tm-chip${selectedGenre === genre.genre ? ' active' : ''}" style="--tm-h:${genreHue(genre.genre)}" data-genre="${genre.genre}" title="このジャンルだけ表示">${escapeHtml(genre.label)} <span class="muted">${genre.count}</span></button>
-      <select class="tm-weight td-edit" data-genre="${genre.genre}" aria-label="${escapeHtml(genre.label)} の興味">${weightOptions(genre.weight)}</select>
+      <select class="tm-weight td-personal" data-genre="${genre.genre}" aria-label="${escapeHtml(genre.label)} の興味">${weightOptions(genre.weight)}</select>
     </div>`).join('');
   return `<div class="tm-legend">
     <button type="button" class="tm-chip tm-chip-all${selectedGenre === 'all' ? ' active' : ''}" data-genre="all">すべて</button>
@@ -123,7 +123,7 @@ function render(): void {
   root.innerHTML = `<div class="tm-view foundation-form">
     <p class="tm-help muted">色はジャンル、 大きさと丸さは興味の度合いです。 ジャンルごとの興味と気になる言葉で大きさが変わり、 開いた話題やよく開くジャンルも少しずつ大きくなります。 興味が薄いものも小さく残ります。</p>
     ${legendHtml(map)}
-    <div class="tm-keywords td-edit">
+    <div class="tm-keywords td-personal">
       <label><span>気になる言葉 (読点・カンマ・改行で区切る)</span><input id="trendMapKeywords" type="text" maxlength="800" value="${escapeHtml(map.prefs.keywords.join('、'))}" placeholder="例: AI、ゲーム、ラーメン"></label>
       <button type="button" id="trendMapSaveKeywords">保存</button>
       <span id="trendMapStatus" class="muted"></span>
@@ -144,7 +144,7 @@ function recordClick(tile: TrendMapTile): void {
   void fetch('/api/trend-crawler/click', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ key: tile.key, genre: tile.genre, sourceId: tile.sourceId }),
+    body: JSON.stringify({ key: tile.key, genre: tile.genre, sourceId: tile.sourceId, title: tile.title.slice(0, 1000) }),
     keepalive: true,
   }).catch(() => { /* 記録できなくても表示は変えない */ });
 }

@@ -119,7 +119,7 @@ test('アプリ (全公開): 公開 Host から一覧と画面は見られ、 �
   const at = (path: string, init: RequestInit = {}) => app.request(`https://tendentia.example.com${path}`, { ...init, headers: { host: 'tendentia.example.com', ...(init.headers as Record<string, string> | undefined) } });
   assert.equal((await at('/api/trend-crawler/overview')).status, 200);
   assert.equal((await at('/api/trend-crawler/map')).status, 200);
-  assert.deepEqual(await (await at('/api/trend-crawler/access')).json(), { canEdit: false });
+  assert.deepEqual(await (await at('/api/trend-crawler/access')).json(), { canEdit: false, canPersonalize: false, user: null });
   assert.equal((await at('/api/trend-crawler/refresh', { method: 'POST' })).status, 403);
   assert.equal((await at('/api/trend-crawler/interest', { method: 'PUT', body: '{}' })).status, 403);
   assert.equal((await at('/api/trend-crawler/click', { method: 'POST', body: '{}' })).status, 403);

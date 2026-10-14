@@ -3,6 +3,8 @@
 
 import type BetterSqlite3 from 'better-sqlite3';
 import { getTrendCrawlerConfig } from '../config.ts';
+import { CLICK_WINDOW_DAYS } from '../interest-store.ts';
+import { pruneUserClicksBefore } from '../personal-store.ts';
 import { pruneSnapshotsBefore } from '../store.ts';
 import { applySyncExport, localCursor, parseSyncExport, saveLocalCursor } from './import.ts';
 import type { SyncResult } from './types.ts';
@@ -42,6 +44,8 @@ export async function pullFromUpstream(db: Db, upstream: string, now: Date = new
   }
   const retentionDays = getTrendCrawlerConfig(db).retentionDays;
   pruneSnapshotsBefore(db, new Date(now.getTime() - retentionDays * DAY_MS).toISOString());
+  // viewer は巡回しないので、 ログインした人の開いた記録の古い分もここで消す。
+  pruneUserClicksBefore(db, new Date(now.getTime() - CLICK_WINDOW_DAYS * DAY_MS).toISOString());
   return result;
 }
 

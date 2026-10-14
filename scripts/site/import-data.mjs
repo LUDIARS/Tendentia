@@ -20,8 +20,8 @@ try {
   db.exec(SCHEMA_SQL);
   if (hasExistingData(db)) throw new Error('Tendentia already has trend data; import refuses to overwrite it');
   writeBundleData(db, bundle.data);
-  const { snapshots, items, clicks, settings } = bundle.data;
-  process.stdout.write(`tendentia data import: ${snapshots.length} snapshots, ${items.length} items, ${clicks.length} clicks, ${settings.length} settings\n`);
+  const { snapshots, items, clicks, settings, userClicks = [] } = bundle.data;
+  process.stdout.write(`tendentia data import: ${snapshots.length} snapshots, ${items.length} items, ${clicks.length} clicks, ${userClicks.length} user clicks, ${settings.length} settings\n`);
 } catch (error) {
   process.stderr.write(`tendentia data import failed: ${error.message}\n`);
   process.exitCode = 1;

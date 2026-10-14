@@ -8,8 +8,11 @@ import { serve } from '@hono/node-server';
 import { AccessGate, publicEntrance } from './runtime/access-gate.ts';
 import { makeApp } from './runtime/app.ts';
 import { CfAccessVerifier, readCfAccessConfig } from './runtime/cf-access.ts';
+import { CernereClient } from './runtime/cernere-client.ts';
 import { readRuntimeConfig } from './runtime/config.ts';
 import { openDatabase } from './runtime/db.ts';
+import { readLoginConfig } from './runtime/login-router.ts';
+import { loadSessionKey, SessionSigner } from './runtime/user-session.ts';
 import { startReplicaPuller } from './trend/replica/puller.ts';
 import { startTrendCrawlerScheduler } from './trend/scheduler.ts';
 
@@ -23,12 +26,19 @@ const db = openDatabase(config.dataDir);
 const entrance = publicEntrance(process.env);
 const cfAccess = readCfAccessConfig(process.env);
 const viewer = config.role === 'viewer';
-const gate = new AccessGate({ entrance, verifier: cfAccess ? new CfAccessVerifier(cfAccess) : undefined, readOnly: viewer });
-const app = makeApp({ db, webDir: config.webDir, version, gate, syncExport: !viewer });
+// Cernere でのログイン: 公開 URL と Cernere の接続先が揃っているときだけ出す (spec/feature/personal-login.md)。
+const loginConfig = entrance.origin ? readLoginConfig(process.env) : null;
+const signer = new SessionSigner(loadSessionKey(config.dataDir));
+const login = loginConfig && entrance.origin
+  ? { config: loginConfig, client: new CernereClient(loginConfig.cernereUrl), signer, selfOrigin: entrance.origin }
+  : undefined;
+const gate = new AccessGate({ entrance, verifier: cfAccess ? new CfAccessVerifier(cfAccess) : undefined, readOnly: viewer, session: signer });
+const app = makeApp({ db, webDir: config.webDir, version, gate, syncExport: !viewer, login });
 
 serve({ fetch: app.fetch, hostname: config.host, port: config.port }, (info) => {
   console.log(`[tendentia] ${config.role} listening on http://${config.host}:${info.port} (data: ${config.dataDir})`);
   console.log(`[tendentia] public entrance: ${entrance.origin ?? 'none'} / Cloudflare Access: ${cfAccess ? 'configured' : 'not configured (public requests get 503)'}`);
+  console.log(`[tendentia] Cernere login: ${login ? login.config.cernerePublicUrl : 'off'}`);
 });
 if (viewer) startReplicaPuller(db, config.upstreamUrl!);
 else startTrendCrawlerScheduler(db);

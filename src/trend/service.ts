@@ -7,6 +7,7 @@ import { getTrendCrawlerConfig } from './config.ts';
 import { fetchTrendSource, type FetchSourceDeps } from './sources/fetch-source.ts';
 import { HostPacer, interleaveByHost } from './host-pacer.ts';
 import { CLICK_WINDOW_DAYS, pruneClicksBefore } from './interest-store.ts';
+import { pruneUserClicksBefore } from './personal-store.ts';
 import { pruneSnapshotsBefore, recordSnapshot } from './store.ts';
 import type { RawTrendItem, TrendCrawlResult, TrendSource } from './types.ts';
 
@@ -54,7 +55,9 @@ export async function crawlTrends(
   }
 
   pruneSnapshotsBefore(db, new Date(now.getTime() - config.retentionDays * DAY_MS).toISOString());
-  pruneClicksBefore(db, new Date(now.getTime() - CLICK_WINDOW_DAYS * DAY_MS).toISOString());
+  const clickCutoff = new Date(now.getTime() - CLICK_WINDOW_DAYS * DAY_MS).toISOString();
+  pruneClicksBefore(db, clickCutoff);
+  pruneUserClicksBefore(db, clickCutoff);
 
   return { crawledAt, ok, failed };
 }

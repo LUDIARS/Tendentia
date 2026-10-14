@@ -29,7 +29,19 @@ function seed(db) {
   db.prepare('INSERT INTO trend_snapshots (id, source_id, genre, fetched_at, ok, error) VALUES (?, ?, ?, ?, ?, ?)').run(8, 'gn', 'youth', '2026-10-14T00:00:00.000Z', 0, 'HTTP 429');
   db.prepare('INSERT INTO trend_items (snapshot_id, rank, title, subtitle, url, metric, item_key) VALUES (?, ?, ?, ?, ?, ?, ?)').run(7, 1, 'Gemini 4', null, 'https://example.com', '10 points', 'gemini4');
   db.prepare('INSERT INTO trend_clicks (item_key, genre, source_id, clicked_at) VALUES (?, ?, ?, ?)').run('gemini4', 'tech', 'hn', '2026-10-14T01:00:00.000Z');
+  db.prepare('INSERT INTO user_interest (user_id, value, updated_at) VALUES (?, ?, ?)').run('u1', '{"genreWeights":{"music":3},"keywords":[]}', '2026-10-14T02:00:00.000Z');
+  db.prepare('INSERT INTO user_clicks (user_id, item_key, title, genre, source_id, clicked_at) VALUES (?, ?, ?, ?, ?, ?)').run('u1', 'gemini4', 'Gemini 4', 'tech', 'hn', '2026-10-14T03:00:00.000Z');
 }
+
+test('版 1 (人ごとの記録が無い) の移行ファイルも受け付ける', () => {
+  const v1 = { ...makeBundle({ settings: [], snapshots: [], items: [], clicks: [] }), version: 1 };
+  assertBundle(v1);
+  assert.throws(() => assertBundle({ ...v1, version: 2 }), /unexpected data sections/);
+  const target = new Database(':memory:');
+  target.exec(SCHEMA_SQL);
+  writeBundleData(target, v1.data);
+  assert.equal(hasExistingData(target), false);
+});
 
 test('移行形式の表定義はアプリが作る表と同じ', () => {
   const fromApp = new Database(':memory:');
@@ -66,7 +78,7 @@ test('sha256 が違う移行ファイルは読まない', async () => {
   const dir = tempDir();
   try {
     const output = join(dir, 'bundle.json');
-    await writeBundleFile(output, makeBundle({ settings: [], snapshots: [], items: [], clicks: [] }));
+    await writeBundleFile(output, makeBundle({ settings: [], snapshots: [], items: [], clicks: [], userInterests: [], userClicks: [] }));
     await assert.rejects(readVerifiedBundle(output, '0'.repeat(64)), /sha256 mismatch/);
     await assert.rejects(readVerifiedBundle(output, 'xyz'), /64 hex/);
   } finally {
@@ -75,7 +87,7 @@ test('sha256 が違う移行ファイルは読まない', async () => {
 });
 
 test('他サービス・余分な項目・存在しない取得を指す行は受け付けない', () => {
-  const ok = makeBundle({ settings: [], snapshots: [{ id: 1, source_id: 's', genre: 'tech', fetched_at: 't', ok: 1, error: null }], items: [], clicks: [] });
+  const ok = makeBundle({ settings: [], snapshots: [{ id: 1, source_id: 's', genre: 'tech', fetched_at: 't', ok: 1, error: null }], items: [], clicks: [], userInterests: [], userClicks: [] });
   assertBundle(ok);
   assert.throws(() => assertBundle({ ...ok, service: 'memoria' }), /belongs to 'memoria'/);
   assert.throws(() => assertBundle({ ...ok, extra: 1 }), /unexpected fields/);

@@ -6,11 +6,14 @@
 //     閲覧 (GET / HEAD) だけ誰でも通す。 設定の変更・巡回・興味・開いた記録などの書き込みは断る。
 //   - Cloudflare Access を設定したときは JWT が正しい要求だけを通し、 ログイン済みなら変更もできる。
 //   - 書き込みで Origin が付いていれば、 公開 URL の Origin と一致しなければ断る (別サイトからの書き込みを防ぐ)。
+// - 本人の好み (scope personal) とログイン (scope session) の書き込みは、 公開 URL と同じ Origin からなら通す。
+//   personal はさらに Cernere でログイン済み (td_session) であること (spec/feature/personal-login.md)。
 // - それ以外は 403。
 
 import type { Context } from 'hono';
 import type { CfAccessVerifier } from './cf-access.ts';
 import { isSameMachineRequest } from './local-request.ts';
+import { readCookie, SESSION_COOKIE, type SessionSigner, type SessionUser } from './user-session.ts';
 
 export interface PublicEntrance {
   /** 公開 URL の Origin (https://tendentia.example.com)。 */
@@ -19,8 +22,11 @@ export interface PublicEntrance {
   hosts: string[];
 }
 
+/** 何を書き換える要求か。 site = 設定・巡回、 personal = 本人の好み (興味・開いた記録)、 session = ログイン・ログアウト。 */
+export type AccessScope = 'site' | 'personal' | 'session';
+
 export type AccessDecision =
-  | { ok: true; via: 'local' | 'public'; canEdit: boolean; email?: string }
+  | { ok: true; via: 'local' | 'public'; canEdit: boolean; email?: string; user?: SessionUser }
   | { ok: false; status: 403 | 503; reason: string };
 
 /** 先頭ドットはドメインとその配下に一致 (Excubitor / Vite の書き方)。 */
@@ -68,8 +74,10 @@ export interface AccessGateDeps {
   entrance: PublicEntrance;
   verifier?: CfAccessVerifier;
   sameMachine?: (context: Context) => boolean;
-  /** true なら誰からの変更も受け付けない (viewer)。 */
+  /** true なら誰からもサイトの変更 (設定・巡回) を受け付けない (viewer)。 本人の好みの記録はログインすれば書ける。 */
   readOnly?: boolean;
+  /** ログイン cookie の読み手。 無ければ誰もログインしていない扱い。 */
+  session?: SessionSigner;
 }
 
 export class AccessGate {
@@ -79,13 +87,37 @@ export class AccessGate {
     this.deps = deps;
   }
 
-  async decide(context: Context): Promise<AccessDecision> {
+  /** ログイン cookie の利用者 (署名と期限が正しいときだけ)。 */
+  user(context: Context): SessionUser | null {
+    return this.deps.session?.read(readCookie(context.req.header('cookie'), SESSION_COOKIE)) ?? null;
+  }
+
+  async decide(context: Context, scope: AccessScope = 'site'): Promise<AccessDecision> {
+    const user = this.user(context);
+    const withUser = (decision: AccessDecision): AccessDecision => (decision.ok && user ? { ...decision, user } : decision);
+    const reading = READ_METHODS.has(context.req.method.toUpperCase());
+    if (!reading && scope !== 'site') return withUser(this.decidePersonalWrite(context, scope, user));
     const decision = await this.decideAccess(context);
-    if (!this.deps.readOnly || !decision.ok) return decision;
-    if (!READ_METHODS.has(context.req.method.toUpperCase())) {
-      return { ok: false, status: 403, reason: 'この Tendentia は閲覧専用です (変更は本社の Tendentia で)' };
+    if (!this.deps.readOnly || !decision.ok) return withUser(decision);
+    if (!reading) return { ok: false, status: 403, reason: 'この Tendentia は閲覧専用です (変更は本社の Tendentia で)' };
+    return withUser({ ...decision, canEdit: false });
+  }
+
+  /** 本人の好みとログインの書き込み。 同じ端末 (viewer を除く) か、 公開 URL からの同じサイトの要求だけを通す。 */
+  private decidePersonalWrite(context: Context, scope: AccessScope, user: SessionUser | null): AccessDecision {
+    const sameMachine = this.deps.sameMachine ?? isSameMachineRequest;
+    if (sameMachine(context)) {
+      if (!this.deps.readOnly) return { ok: true, via: 'local', canEdit: true };
+      if (scope === 'session' || user) return { ok: true, via: 'local', canEdit: false };
+      return { ok: false, status: 403, reason: 'ログインすると自分の好みを記録できます' };
     }
-    return { ...decision, canEdit: false };
+    if (!matchesHost(context.req.header('host'), this.deps.entrance.hosts)) return { ok: false, status: 403, reason: 'この端末か公開 URL からだけ開けます' };
+    // cookie 付きの書き込みなので、 別サイトから送らせる要求 (CSRF) を Origin で断る。 Origin の無い書き込みも断る。
+    if (!this.deps.entrance.origin || context.req.header('origin') !== this.deps.entrance.origin) {
+      return { ok: false, status: 403, reason: '別のサイトからの要求は受け付けません' };
+    }
+    if (scope === 'personal' && !user) return { ok: false, status: 403, reason: 'ログインすると自分の好みを記録できます' };
+    return { ok: true, via: 'public', canEdit: false };
   }
 
   private async decideAccess(context: Context): Promise<AccessDecision> {

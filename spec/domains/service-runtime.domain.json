@@ -24,6 +24,9 @@
       "pathPattern": "(^|/)web/src/sanitize\\.ts$"
     },
     {
+      "pathPattern": "(^|/)web/src/account-view\\.ts$"
+    },
+    {
       "pathPattern": "(^|/)web/index\\.html$"
     },
     {
@@ -38,6 +41,9 @@
     "spec/feature/service-runtime.md#構成",
     "spec/feature/service-runtime.md#起動設定",
     "spec/feature/service-runtime.md#公開の入口",
-    "spec/feature/service-runtime.md#制約"
+    "spec/feature/service-runtime.md#制約",
+    "spec/feature/personal-login.md#ログインの流れ",
+    "spec/feature/personal-login.md#入口の判定",
+    "spec/feature/personal-login.md#設定"
   ]
 }

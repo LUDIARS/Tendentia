@@ -10,13 +10,13 @@ import { makeBundle, parseArguments, readBundleData } from './data-bundle.mjs';
 try {
   const args = parseArguments(process.argv.slice(2), ['--output']);
   const path = dbPath();
-  let data = { settings: [], snapshots: [], items: [], clicks: [] };
+  let data = { settings: [], snapshots: [], items: [], clicks: [], userInterests: [], userClicks: [] };
   if (existsSync(path)) {
     const db = new Database(path, { readonly: true, fileMustExist: true });
     try { data = readBundleData(db); } finally { db.close(); }
   }
   const sha256 = await writeBundleFile(args['--output'], makeBundle(data));
-  process.stdout.write(`tendentia data export: ${data.snapshots.length} snapshots, ${data.items.length} items, ${data.clicks.length} clicks, ${data.settings.length} settings (sha256 ${sha256})\n`);
+  process.stdout.write(`tendentia data export: ${data.snapshots.length} snapshots, ${data.items.length} items, ${data.clicks.length} clicks, ${data.userClicks.length} user clicks, ${data.settings.length} settings (sha256 ${sha256})\n`);
 } catch (error) {
   process.stderr.write(`tendentia data export failed: ${error.message}\n`);
   process.exitCode = 1;
