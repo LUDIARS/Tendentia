@@ -1,20 +1,42 @@
-# Excubitor catalog fragment -- Tendentia (サービス所有 catalog)。
+# Excubitor catalog fragment -- Tendentia (Td) owns this service definition.
+#
+# ポート番号の正本はここだけ (コードには既定値を持たない)。起動・停止は Excubitor 経由で、
+# 本体 checkout (${ARS_ROOT}/Tendentia) からだけ行う。worktree からは起動しない。
+# 画面と API は同じ端末からだけ使う (127.0.0.1 で待ち受け、API は同一端末判定で守る)。
+# AI 要約は Claude Code CLI (`claude -p`) を使う。API キーは持たない。
 services:
   - code: tendentia
-    name: Tendentia (Tendentia (Td): multi-genre trend crawler and interest-weighted trend map)
+    name: Tendentia (トレンドの集積とトレンドマップ)
+    viewer:
+      enabled: true
+      entry_path: /
     tier: personal
-    project_code: tendentia
+    project_code: Td
     component: backend
     port: 4450
     repo: LUDIARS/Tendentia
     runtime: node
     cwd: ${ARS_ROOT}/Tendentia
-    command: npm run dev
+    # 常駐は事前ビルドした JS を node で直接起動する (tsx を常駐させない)。
+    command: node dist/server.js
+    build_command: npm run build
+    allow_hot_reload: false
     autostart: false
-    restart_policy: "no"
+    restart_policy: on-failure
+    max_restart: 5
+    log_path: ${ARS_ROOT}/logs/tendentia
     health:
       type: http
-      url: http://localhost:4450/health
+      url: http://127.0.0.1:4450/health
       interval_sec: 30
+      grace_period_sec: 15
     provides:
-      TENDENTIA_URL: http://${host}:${port}
+      TENDENTIA_URL: http://127.0.0.1:${port}
+    env:
+      NODE_ENV: production
+      TENDENTIA_HOST: 127.0.0.1
+      TENDENTIA_PORT: "4450"
+      # 巡回の履歴・興味の設定・開いた記録 (tendentia.db)。data/ は .gitignore 済み。
+      TENDENTIA_DATA_DIR: ${ARS_ROOT}/Tendentia/data
+      # AI 要約のモデル (claude CLI のエイリアス)。
+      TENDENTIA_LLM_MODEL: haiku

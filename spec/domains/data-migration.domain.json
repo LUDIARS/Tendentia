@@ -1,0 +1,24 @@
+{
+  "name": "data-migration",
+  "description": "Excubitor のサービス導入契約 (setup / data-export / data-import) と、Memoria のトレンド機能からの 1 回きりの移行。移行形式の検証、上書き拒否、失敗時の後始末を所有する。",
+  "role": "semantic",
+  "presetRules": [],
+  "templateRules": [],
+  "membership": [
+    {
+      "pathPattern": "(^|/)scripts/site/[^/]+.mjs$"
+    },
+    {
+      "pathPattern": "(^|/)scripts/migrate-from-memoria.mjs$"
+    },
+    {
+      "pathPattern": "(^|/)excubitor.bootstrap.json$"
+    }
+  ],
+  "specRefs": [
+    "spec/feature/data-migration.md#目的",
+    "spec/feature/data-migration.md#移行形式",
+    "spec/feature/data-migration.md#手順",
+    "spec/feature/data-migration.md#制約"
+  ]
+}

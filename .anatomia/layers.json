@@ -1,0 +1,50 @@
+{
+  "$comment": "Anatomia のプログラムドメイン (二層判定) 用の層宣言。 glob は repo 相対パスに完全一致 (`*` = 1 階層)。 glob 同士を重ねない。",
+  "layers": [
+    {
+      "glob": "*",
+      "layer": "application"
+    },
+    {
+      "glob": "src/*",
+      "layer": "application"
+    },
+    {
+      "glob": "src/runtime/*",
+      "layer": "infrastructure"
+    },
+    {
+      "glob": "src/llm/*",
+      "layer": "infrastructure"
+    },
+    {
+      "glob": "src/shared/*",
+      "layer": "infrastructure"
+    },
+    {
+      "glob": "src/trend/*",
+      "layer": "domain-logic"
+    },
+    {
+      "glob": "src/trend/sources/*",
+      "layer": "domain-logic"
+    },
+    {
+      "glob": "web/*",
+      "layer": "presentation"
+    },
+    {
+      "glob": "web/src/*",
+      "layer": "presentation"
+    },
+    {
+      "glob": "scripts/*",
+      "layer": "infrastructure"
+    },
+    {
+      "glob": "scripts/site/*",
+      "layer": "infrastructure"
+    }
+  ],
+  "mergeCouplingThreshold": 1
+}
