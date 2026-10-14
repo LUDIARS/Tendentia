@@ -3,10 +3,10 @@ import { Hono, type Context } from 'hono';
 import { isSameMachineRequest } from '../runtime/local-request.js';
 
 /** 要求を通すかどうか。 既定は同じ端末だけ (公開の入口は src/runtime/access-gate.ts が判定を差し替える)。 */
-export type TrendAuthorize = (context: Context) => Promise<{ ok: true } | { ok: false; status: 403 | 503; reason: string }>;
+export type TrendAuthorize = (context: Context) => Promise<{ ok: true; canEdit: boolean } | { ok: false; status: 403 | 503; reason: string }>;
 
 const sameMachineOnly: TrendAuthorize = async (context) => (isSameMachineRequest(context)
-  ? { ok: true }
+  ? { ok: true, canEdit: true }
   : { ok: false, status: 403, reason: 'same-machine access required' });
 import {
   findTrendSource,
@@ -46,6 +46,12 @@ export function makeTrendCrawlerRouter(deps: TrendCrawlerRouterDeps): Hono {
     const decision = await authorize(context);
     if (!decision.ok) return context.json({ error: decision.reason }, decision.status);
     await next();
+  });
+
+  // 画面が操作 (巡回・設定・興味) のボタンを出すかどうか。 公開 URL からの閲覧では false。
+  router.get('/api/trend-crawler/access', async (context: Context) => {
+    const decision = await authorize(context);
+    return context.json({ canEdit: decision.ok && decision.canEdit });
   });
 
   router.get('/api/trend-crawler/config', (context: Context) => context.json(getTrendCrawlerConfig(deps.db)));

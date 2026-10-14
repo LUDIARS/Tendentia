@@ -3,8 +3,9 @@
 # ポート番号の正本はここだけ (コードには既定値を持たない)。起動・停止は Excubitor 経由で、
 # 本体 checkout (${ARS_ROOT}/Tendentia) からだけ行う。worktree からは起動しない。
 # 待ち受けは 127.0.0.1。同じ端末からは今まで通り使え、外からは公開 URL (Cloudflare Tunnel) 経由で開く。
-# 公開 URL への要求は Cloudflare Access の JWT が正しいときだけ通す。team / AUD は Excubitor の runtime-config
-# (EXCUBITOR_SERVICE_CONFIG_JSON の cloudflareAccess) から受け取り、未設定なら公開 URL への要求は 503。
+# 公開 URL は全公開 (Access なし) で閲覧だけ誰でもできる。変更 (設定・巡回・興味) は同じ端末からだけ。
+# Cloudflare Access を付けたときは JWT が正しい要求だけを通す (team / AUD は Excubitor の runtime-config
+# = EXCUBITOR_SERVICE_CONFIG_JSON の cloudflareAccess から受け取る)。
 # 公開 Host は Ex の global.env.LUDIARS_ALLOWED_HOSTS も受け取る (ここで上書きしない)。
 # LLM は使わない。
 services:

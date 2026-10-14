@@ -159,3 +159,6 @@ button:disabled { opacity: 0.6; cursor: default; }
 .tc-reason-cross { background: #7c3aed; }
 .tc-reason-new { background: #dc2626; }
 .tc-reason-up { background: #16a34a; }
+
+/* 公開 URL からの閲覧 (変更できない) では、 操作の部品 (td-edit) を隠す。 */
+body[data-readonly="true"] .td-edit { display: none !important; }

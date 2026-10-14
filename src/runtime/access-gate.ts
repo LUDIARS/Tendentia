@@ -1,8 +1,10 @@
 // だれの要求を通すかを決める。
-// - 同じ端末から (127.0.0.1 / この機械の名前・アドレス) の要求は今まで通り通す。
-// - 公開 Host (TENDENTIA_PUBLIC_URL と LUDIARS_ALLOWED_HOSTS) への要求は、 Cloudflare Access の JWT が正しいときだけ通す。
-//   公開の設定 (team / AUD) が無ければ 503 で断る (認証を外して公開することはない)。
-//   Origin が付いていれば、 公開 URL の Origin と一致しなければ断る (別サイトからの書き込みを防ぐ)。
+// - 同じ端末から (127.0.0.1 / この機械の名前・アドレス) の要求は今まで通り通し、 変更もできる。
+// - 公開 Host (TENDENTIA_PUBLIC_URL と LUDIARS_ALLOWED_HOSTS) への要求:
+//   - Cloudflare Access を設定していない (全公開。 2026-10-14 neco「秘匿物ないので全公開で良い」) ときは、
+//     閲覧 (GET / HEAD) だけ誰でも通す。 設定の変更・巡回・興味・開いた記録などの書き込みは断る。
+//   - Cloudflare Access を設定したときは JWT が正しい要求だけを通し、 ログイン済みなら変更もできる。
+//   - 書き込みで Origin が付いていれば、 公開 URL の Origin と一致しなければ断る (別サイトからの書き込みを防ぐ)。
 // - それ以外は 403。
 
 import type { Context } from 'hono';
@@ -17,7 +19,7 @@ export interface PublicEntrance {
 }
 
 export type AccessDecision =
-  | { ok: true; via: 'local' | 'public'; email?: string }
+  | { ok: true; via: 'local' | 'public'; canEdit: boolean; email?: string }
   | { ok: false; status: 403 | 503; reason: string };
 
 /** 先頭ドットはドメインとその配下に一致 (Excubitor / Vite の書き方)。 */
@@ -57,6 +59,8 @@ export function publicEntrance(env: NodeJS.ProcessEnv): PublicEntrance {
   return { origin, hosts };
 }
 
+const READ_METHODS = new Set(['GET', 'HEAD']);
+
 export interface AccessGateDeps {
   entrance: PublicEntrance;
   verifier?: CfAccessVerifier;
@@ -68,14 +72,19 @@ export class AccessGate {
 
   async decide(context: Context): Promise<AccessDecision> {
     const sameMachine = this.deps.sameMachine ?? isSameMachineRequest;
-    if (sameMachine(context)) return { ok: true, via: 'local' };
+    if (sameMachine(context)) return { ok: true, via: 'local', canEdit: true };
     const host = context.req.header('host');
     if (!matchesHost(host, this.deps.entrance.hosts)) return { ok: false, status: 403, reason: 'この端末か公開 URL からだけ開けます' };
-    if (!this.deps.verifier) return { ok: false, status: 503, reason: '公開の入口 (Cloudflare Access) が未設定です' };
+    const reading = READ_METHODS.has(context.req.method.toUpperCase());
+    if (!this.deps.verifier) {
+      return reading
+        ? { ok: true, via: 'public', canEdit: false }
+        : { ok: false, status: 403, reason: '公開 URL からは閲覧だけできます (変更はこの端末から)' };
+    }
     const identity = await this.deps.verifier.verify(context.req.header('cf-access-jwt-assertion'));
     if (!identity) return { ok: false, status: 403, reason: 'Cloudflare Access のログインが必要です' };
     const origin = context.req.header('origin');
-    if (origin && origin !== this.deps.entrance.origin) return { ok: false, status: 403, reason: '別のサイトからの要求は受け付けません' };
-    return { ok: true, via: 'public', email: identity.email };
+    if (!reading && origin && origin !== this.deps.entrance.origin) return { ok: false, status: 403, reason: '別のサイトからの要求は受け付けません' };
+    return { ok: true, via: 'public', canEdit: true, email: identity.email };
   }
 }

@@ -68,26 +68,23 @@ test('公開 URL と許可 Host の読み取り', () => {
   assert.equal(matchesHost('tendentia.example.com@evil.com', entrance.hosts), false);
 });
 
-function fakeContext(headers: Record<string, string>): Context {
+function fakeContext(headers: Record<string, string>, method = 'GET'): Context {
   const lower = Object.fromEntries(Object.entries(headers).map(([k, v]) => [k.toLowerCase(), v]));
-  return { req: { header: (name: string) => lower[name.toLowerCase()] } } as unknown as Context;
+  return { req: { method, header: (name: string) => lower[name.toLowerCase()] } } as unknown as Context;
 }
 
 const entrance = { origin: 'https://tendentia.example.com', hosts: ['tendentia.example.com'] };
 
-test('入口の判定: 同じ端末は通し、 公開 Host は JWT と Origin を見て、 それ以外は断る', async () => {
+test('入口の判定 (Access あり): 同じ端末は通し、 公開 Host は JWT と書き込みの Origin を見て、 それ以外は断る', async () => {
   const gate = new AccessGate({ entrance, verifier: verifier(), sameMachine: (c) => c.req.header('host') === '127.0.0.1:4450' });
-  assert.deepEqual(await gate.decide(fakeContext({ host: '127.0.0.1:4450' })), { ok: true, via: 'local' });
+  assert.deepEqual(await gate.decide(fakeContext({ host: '127.0.0.1:4450' })), { ok: true, via: 'local', canEdit: true });
   assert.deepEqual(await gate.decide(fakeContext({ host: 'tendentia.example.com', 'cf-access-jwt-assertion': token(valid) })),
-    { ok: true, via: 'public', email: 'neco@example.com' });
+    { ok: true, via: 'public', canEdit: true, email: 'neco@example.com' });
   assert.equal((await gate.decide(fakeContext({ host: 'tendentia.example.com' }))).ok, false);
-  const crossSite = await gate.decide(fakeContext({ host: 'tendentia.example.com', 'cf-access-jwt-assertion': token(valid), origin: 'https://evil.com' }));
+  const crossSite = await gate.decide(fakeContext({ host: 'tendentia.example.com', 'cf-access-jwt-assertion': token(valid), origin: 'https://evil.com' }, 'POST'));
   assert.deepEqual(crossSite, { ok: false, status: 403, reason: '別のサイトからの要求は受け付けません' });
   const other = await gate.decide(fakeContext({ host: 'evil.com', 'cf-access-jwt-assertion': token(valid) }));
   assert.equal(other.ok ? 0 : other.status, 403);
-  const unconfigured = new AccessGate({ entrance, sameMachine: () => false });
-  const noAccess = await unconfigured.decide(fakeContext({ host: 'tendentia.example.com', 'cf-access-jwt-assertion': token(valid) }));
-  assert.equal(noAccess.ok ? 0 : noAccess.status, 503);
 });
 
 test('アプリ: 公開 Host からの API と画面は JWT が要り、 health は誰でも見られる', async () => {
@@ -103,4 +100,29 @@ test('アプリ: 公開 Host からの API と画面は JWT が要り、 health 
   assert.equal((await at('/api/trend-crawler/overview', authed)).status, 200);
   // 画面のファイルは無いので 503 (認証は通った)。
   assert.equal((await at('/', authed)).status, 503);
+});
+
+test('入口の判定 (全公開 = Access なし): 公開 Host は閲覧だけ誰でも通し、 書き込みは断る', async () => {
+  const gate = new AccessGate({ entrance, sameMachine: () => false });
+  assert.deepEqual(await gate.decide(fakeContext({ host: 'tendentia.example.com' })), { ok: true, via: 'public', canEdit: false });
+  assert.deepEqual(await gate.decide(fakeContext({ host: 'tendentia.example.com' }, 'HEAD')), { ok: true, via: 'public', canEdit: false });
+  const write = await gate.decide(fakeContext({ host: 'tendentia.example.com' }, 'PUT'));
+  assert.equal(write.ok ? 0 : write.status, 403);
+  const other = await gate.decide(fakeContext({ host: 'evil.com' }));
+  assert.equal(other.ok ? 0 : other.status, 403);
+});
+
+test('アプリ (全公開): 公開 Host から一覧と画面は見られ、 変更の API は断り、 変更できないことを画面に知らせる', async () => {
+  const db = new Database(':memory:');
+  ensureSchema(db);
+  const app = makeApp({ db, webDir: 'Z:/no-such-dir', version: '0.1.0', gate: new AccessGate({ entrance, sameMachine: () => false }) });
+  const at = (path: string, init: RequestInit = {}) => app.request(`https://tendentia.example.com${path}`, { ...init, headers: { host: 'tendentia.example.com', ...(init.headers as Record<string, string> | undefined) } });
+  assert.equal((await at('/api/trend-crawler/overview')).status, 200);
+  assert.equal((await at('/api/trend-crawler/map')).status, 200);
+  assert.deepEqual(await (await at('/api/trend-crawler/access')).json(), { canEdit: false });
+  assert.equal((await at('/api/trend-crawler/refresh', { method: 'POST' })).status, 403);
+  assert.equal((await at('/api/trend-crawler/interest', { method: 'PUT', body: '{}' })).status, 403);
+  assert.equal((await at('/api/trend-crawler/click', { method: 'POST', body: '{}' })).status, 403);
+  // 画面のファイルは無いので 503 (入口は通った)。
+  assert.equal((await at('/')).status, 503);
 });

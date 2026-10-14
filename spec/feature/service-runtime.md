@@ -34,18 +34,19 @@ Tendentia は設定の読み込み・データの用意・HTTP の入口・定�
 
 ## 公開の入口
 
-外 (スマホなど) からは Cloudflare Tunnel 経由の公開 URL で開く。Tunnel の route は Access JWT 必須で、
-アプリ側でも次の順で判定する (health は誰でも見られる)。
+外 (スマホなど) からは Cloudflare Tunnel 経由の公開 URL で開く。2026-10-14 neco「秘匿物ないので全公開で良い」により、
+既定は Cloudflare Access なしの全公開で、公開 URL からは閲覧だけできる。判定の順 (health は誰でも見られる):
 
-1. 同じ端末 (接続元が自分、Host が自分の名前・アドレス、Origin が一致) → 通す。
+1. 同じ端末 (接続元が自分、Host が自分の名前・アドレス、Origin が一致) → 通す。変更もできる。
 2. Host が公開 URL / `LUDIARS_ALLOWED_HOSTS` に一致 →
-   - Access の設定 (team / AUD) が無ければ 503 (認証を外して公開しない)。
-   - `Cf-Access-Jwt-Assertion` を Access チームの公開鍵 (RS256) で検証し、iss・aud・exp・nbf を確かめる。だめなら 403。
-   - Origin が付いていて公開 URL と違えば 403 (別サイトからの書き込みを防ぐ)。
+   - Access の設定 (team / AUD) が無い (全公開): 閲覧 (GET / HEAD) だけ通す。書き込み (設定・巡回・興味・開いた記録) は 403。
+   - Access の設定がある: `Cf-Access-Jwt-Assertion` を Access チームの公開鍵 (RS256) で検証し、iss・aud・exp・nbf を確かめる。
+     正しければ変更もできる (書き込みで Origin が付いていれば公開 URL と一致を求める)。だめなら 403。
 3. それ以外 → 403。
 
-Access の team / AUD は `cf:access-app` (Castra command-runner) が Excubitor の runtime-config に書き、
-Excubitor が `EXCUBITOR_SERVICE_CONFIG_JSON` で渡す。
+画面は `GET /api/trend-crawler/access` (`{ canEdit }`) を見て、変更できないときは操作の部品 (`td-edit`) を隠し、
+開いた記録も送らない。Access を付けるときは `cf:access-app` (Castra command-runner) が team / AUD を Excubitor の
+runtime-config に書き、Excubitor が `EXCUBITOR_SERVICE_CONFIG_JSON` で渡す。
 
 ## 制約
 

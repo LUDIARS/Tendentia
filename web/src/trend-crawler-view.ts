@@ -122,9 +122,22 @@ function applyMode(): void {
   });
 }
 
+/** 変更 (巡回・設定・興味) ができるか。 公開 URL からの閲覧では false で、 印 (td-edit) の付いた操作を隠す。 */
+let canEdit = true;
+
+async function loadAccess(): Promise<void> {
+  try {
+    const response = await fetch('/api/trend-crawler/access');
+    canEdit = response.ok && ((await response.json()) as { canEdit?: boolean }).canEdit === true;
+  } catch {
+    canEdit = false;
+  }
+  document.body.dataset.readonly = canEdit ? 'false' : 'true';
+}
+
 async function loadMap(): Promise<void> {
   const container = document.getElementById('trendCrawlerMap');
-  if (container) await loadTrendMap(container);
+  if (container) await loadTrendMap(container, canEdit);
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -183,7 +196,7 @@ function sourceCard(source: TrendSourceView): string {
         <h4>${escapeHtml(source.name)}</h4>
         <p class="tc-source-meta">${escapeHtml(KIND_LABELS[source.kind] ?? source.kind)}${source.fetchedAt ? ` · 取得 ${escapeHtml(fmtTime(source.fetchedAt))}` : ''}</p>
       </div>
-      <button type="button" class="ghost tc-refresh-one" data-source-id="${escapeHtml(source.sourceId)}" title="このソースだけ取り直す">↻</button>
+      <button type="button" class="ghost tc-refresh-one td-edit" data-source-id="${escapeHtml(source.sourceId)}" title="このソースだけ取り直す">↻</button>
     </header>
     ${source.error ? `<div class="tc-error">⚠ 最新の巡回に失敗: ${escapeHtml(source.error)}</div>` : ''}
     ${items}
@@ -406,12 +419,12 @@ function initialize(): void {
   element.innerHTML = `<div class="tc-view foundation-form">
     <header class="tc-header">
       <div><h2>📈 トレンド</h2><p>ニュース・株価・IT・AI・ガジェット・ゲーム・アニメ・マンガ・小説・芸能・ファッション・食品・外食・ネットミームなど 24 ジャンルのランキングとニュースを 3 時間ごとに巡回し、 前回からの順位の動きと注目をジャンル別に並べます。</p></div>
-      <div class="tc-header-actions"><button id="trendCrawlerRefresh" type="button">今すぐ巡回</button><span id="trendCrawlerStatus" class="muted"></span></div>
+      <div class="tc-header-actions"><button id="trendCrawlerRefresh" class="td-edit" type="button">今すぐ巡回</button><span id="trendCrawlerStatus" class="muted"></span></div>
     </header>
     <nav class="tc-mode worklog-subtabs"><button type="button" class="wl-subtab" data-mode="map">🫧 マップ</button><button type="button" class="wl-subtab" data-mode="list">☰ リスト</button></nav>
     <div id="trendCrawlerMap"><div class="empty">読み込み中…</div></div>
     <div id="trendCrawlerOverview"><div class="empty">読み込み中…</div></div>
-    <details class="tc-settings">
+    <details class="tc-settings td-edit">
       <summary>巡回するソースの設定</summary>
       <div class="tc-settings-head">
         <label><span>自動で巡回</span><input id="trendCrawlerEnabled" type="checkbox"></label>
@@ -448,8 +461,9 @@ function initialize(): void {
 
 export async function loadTrendCrawlerView(): Promise<void> {
   initialize();
+  await loadAccess();
   try {
-    await Promise.all([loadConfig(), loadOverview(), loadMap()]);
+    await Promise.all([canEdit ? loadConfig() : Promise.resolve(), loadOverview(), loadMap()]);
   } catch (error) {
     const output = document.getElementById('trendCrawlerOverview');
     if (output) output.innerHTML = `<div class="empty">読み込み失敗: ${escapeHtml(error instanceof Error ? error.message : String(error))}</div>`;
