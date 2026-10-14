@@ -2,3 +2,6 @@ node_modules/
 dist/
 data/
 *.log
+# Anatomia が審査のたびに作る作業ファイル。層の宣言 (layers.json) だけを記録する。
+.anatomia/*
+!.anatomia/layers.json

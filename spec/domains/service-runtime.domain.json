@@ -31,6 +31,9 @@
     },
     {
       "pathPattern": "(^|/)web/style.css$"
+    },
+    {
+      "pathPattern": "(^|/)\\.gitignore$"
     }
   ],
   "specRefs": [
