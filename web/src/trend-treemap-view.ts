@@ -7,7 +7,7 @@
 import { genreHue, type TrendGenre } from './genres.ts';
 import { escapeHtml } from './sanitize.ts';
 import { groupByGenre, tileWeight, treemapHeight, type GenreBlock, type TreemapGenre, type TreemapTile } from './treemap-blocks.ts';
-import { squarify, wordsThatFit, type Rect } from './treemap-layout.ts';
+import { squarify, squarifyReadable, wordsThatFit, type Rect } from './treemap-layout.ts';
 
 export interface TreemapOptions {
   /** 話題を開いたとき (開いた記録を送る)。 index は呼び出し元の tiles の位置。 */
@@ -22,6 +22,9 @@ const MAX_WORDS_SINGLE = 24;
 const HEADER_HEIGHT = 22;
 /** 話題 1 つに要る最小の面積 (px²)。 これより狭くなるなら並べる数を減らす。 */
 const MIN_WORD_AREA = 6000;
+/** ワードの四角の最小の幅・高さ (px)。 これより細くなるなら並べる数を減らす。 */
+const MIN_WORD_WIDTH = 56;
+const MIN_WORD_HEIGHT = 30;
 const FONT_SIZE = 12;
 const LINE_HEIGHT = 1.3;
 /** これより細いブロックでは「ほか n 件」を「+n」に縮める (ジャンル名を潰さないように)。 */
@@ -54,9 +57,8 @@ function blockHtml(block: GenreBlock, rect: Rect, maxWords: number): string {
   const inner = inset(rect, GAP);
   const words = { x: 0, y: HEADER_HEIGHT, width: inner.width, height: Math.max(0, inner.height - HEADER_HEIGHT) };
   const count = wordsThatFit(words, block.tiles.length, MIN_WORD_AREA, maxWords);
-  const shown = block.tiles.slice(0, count);
-  const more = block.tiles.length - shown.length;
-  const placed = squarify(shown, (entry) => tileWeight(entry.tile), words);
+  const placed = squarifyReadable(block.tiles, (entry) => tileWeight(entry.tile), words, count, MIN_WORD_WIDTH, MIN_WORD_HEIGHT);
+  const more = block.tiles.length - placed.length;
   return `<section class="tt-block" style="${px(inner)};--tm-h:${genreHue(block.genre.genre)}">
     <button type="button" class="tt-block-head" data-genre="${block.genre.genre}" title="このジャンルだけ表示">
       <span>${escapeHtml(block.genre.label)}</span>${more > 0 ? `<span class="tt-more">${inner.width < NARROW_BLOCK ? `+${more}` : `ほか ${more} 件 ›`}</span>` : ''}

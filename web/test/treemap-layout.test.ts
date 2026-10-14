@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { squarify, wordsThatFit } from '../src/treemap-layout.ts';
-import { groupByGenre, treemapHeight, type TreemapTile } from '../src/treemap-blocks.ts';
+import { squarify, squarifyReadable, wordsThatFit } from '../src/treemap-layout.ts';
+import { groupByGenre, tileWeight, treemapHeight, type TreemapTile } from '../src/treemap-blocks.ts';
 
 const frame = { x: 0, y: 0, width: 360, height: 600 };
 
@@ -54,8 +54,40 @@ test('ジャンルごとにまとめ、 興味の強い順に並べる。 話題
   assert.ok(blocks[0].weight > blocks[1].weight);
 });
 
+test('大きさに差をつける: ワードは興味の 4 乗、 ブロックは全話題の興味の 2 乗の合計で、 小さすぎるブロックは底上げする', () => {
+  const tile = (key: string, genre: TreemapTile['genre'], interest: number): TreemapTile =>
+    ({ key, title: key, url: null, genre, interest, rank: 1, sourceName: 's' });
+  // 興味 0.97 と 0.69 (上位に多い値) でも、 ワードの広さは 2.5 倍以上違う。
+  assert.ok(tileWeight(tile('a', 'tech', 0.97)) / tileWeight(tile('b', 'tech', 0.69)) > 2.5);
+  assert.ok(tileWeight(tile('z', 'tech', 0)) > 0);
+  // 話題が多く興味の強いジャンルほど広い。 話題の少ないジャンルは中央の 35% まで底上げ。
+  const tiles = [
+    ...Array.from({ length: 40 }, (_, i) => tile(`t${i}`, 'tech', 0.8)),
+    ...Array.from({ length: 20 }, (_, i) => tile(`g${i}`, 'game', 0.8)),
+    ...Array.from({ length: 10 }, (_, i) => tile(`m${i}`, 'music', 0.8)),
+    tile('b0', 'book', 0.3),
+  ];
+  const blocks = groupByGenre(tiles, (['tech', 'game', 'music', 'book'] as const).map((genre) => ({ genre, label: genre })));
+  const weight = (genre: string) => blocks.find((b) => b.genre.genre === genre)!.weight;
+  assert.ok(weight('tech') > weight('game') && weight('game') > weight('music'));
+  assert.ok(Math.abs(weight('tech') / weight('game') - 2) < 0.01);
+  const median = (weight('game') + weight('music')) / 2;
+  assert.ok(Math.abs(weight('book') - median * 0.35) < 1e-9);
+});
+
 test('全体の高さはブロックの数に合わせ、 幅の 1.2〜4 倍に収める', () => {
   assert.equal(treemapHeight(360, 1), 432);
   assert.equal(treemapHeight(360, 24), Math.round((24 * 17_000) / 360));
   assert.equal(treemapHeight(360, 200), 1440);
+});
+
+test('細すぎる四角ができるなら並べる数を減らし、 少なくとも 1 つは置く', () => {
+  const box = { x: 0, y: 0, width: 120, height: 100 };
+  const weights = [1, 0.05, 0.05, 0.05];
+  // そのまま 4 つ置くと小さい 3 つが細くなる。
+  assert.ok(squarify(weights, (w) => w, box).some((cell) => cell.width < 40 || cell.height < 30));
+  const placed = squarifyReadable(weights, (w) => w, box, 4, 40, 30);
+  assert.ok(placed.length >= 1 && placed.length < 4);
+  assert.ok(placed.every((cell) => cell.width >= 40 && cell.height >= 30) || placed.length === 1);
+  assert.equal(squarifyReadable(weights, (w) => w, { x: 0, y: 0, width: 10, height: 10 }, 4, 40, 30).length, 1);
 });

@@ -78,6 +78,18 @@ export function squarify<T>(items: readonly T[], weightOf: (item: T) => number, 
   return placed;
 }
 
+/**
+ * 先頭から count 個を割り付け、 どれかが minWidth × minHeight より細くなるなら 1 つ減らしてやり直す
+ * (重みの差が大きいと細長い四角ができ、 文字が 1 字ずつ縦に並んでしまうため)。 少なくとも 1 つは置く。
+ */
+export function squarifyReadable<T>(items: readonly T[], weightOf: (item: T) => number, frame: Rect, count: number, minWidth: number, minHeight: number): Placed<T>[] {
+  for (let n = Math.min(count, items.length); n > 1; n -= 1) {
+    const placed = squarify(items.slice(0, n), weightOf, frame);
+    if (placed.every((cell) => cell.width >= minWidth && cell.height >= minHeight)) return placed;
+  }
+  return squarify(items.slice(0, 1), weightOf, frame);
+}
+
 /** 面積に応じて、 ブロックの中に並べる注目ワードの数を決める (小さいブロックに詰め込まない)。 */
 export function wordsThatFit(rect: Rect, available: number, minCellArea: number, max: number): number {
   const byArea = Math.floor((rect.width * rect.height) / minCellArea);

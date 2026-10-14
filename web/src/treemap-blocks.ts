@@ -18,12 +18,18 @@ export interface TreemapGenre {
   label: string;
 }
 
-/** 興味 0 の話題も小さく残す (消えない)。 */
-const TILE_BASE = 0.35;
-/** 1 ジャンルの広さに数える話題の数 (話題の多いジャンルが画面を占めないように)。 */
-const GENRE_WEIGHT_TOP = 6;
+// 大きさに差をつける (2026-10-14 neco「大きさに差をつけて欲しい」)。 興味は上位がどれも 0.7〜1 に固まるので、
+// そのまま比例させると全部同じ大きさになる。 ワードは興味の 4 乗、 ブロックは全話題の興味の 2 乗の合計で広さを決める
+// (話題が多く注目の強いジャンルほど広い = 市場規模マップの「規模」)。
 
-export const tileWeight = (tile: TreemapTile): number => TILE_BASE + Math.min(1, Math.max(0, tile.interest));
+/** 興味 0 の話題も小さく残す (消えない)。 */
+const TILE_FLOOR = 0.03;
+/** これより狭いブロックは作らない (中央のジャンルの広さに対する割合)。 ジャンル名とワード 1 つが読めるように。 */
+const BLOCK_FLOOR_OF_MEDIAN = 0.35;
+
+const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
+
+export const tileWeight = (tile: TreemapTile): number => TILE_FLOOR + clamp01(tile.interest) ** 4;
 
 export interface GenreBlock {
   genre: TreemapGenre;
@@ -31,15 +37,24 @@ export interface GenreBlock {
   weight: number;
 }
 
-/** ジャンルごとにまとめ、 話題は興味の強い順に並べる。 */
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
+/** ジャンルごとにまとめ、 話題は興味の強い順に並べる。 ブロックの重みは全話題の興味の 2 乗の合計 (小さすぎるものは底上げ)。 */
 export function groupByGenre(tiles: readonly TreemapTile[], genres: readonly TreemapGenre[]): GenreBlock[] {
-  return genres.map((genre) => {
+  const blocks = genres.map((genre) => {
     const entries = tiles.map((tile, index) => ({ tile, index }))
       .filter((entry) => entry.tile.genre === genre.genre)
       .sort((a, b) => b.tile.interest - a.tile.interest || a.tile.rank - b.tile.rank);
-    const weight = entries.slice(0, GENRE_WEIGHT_TOP).reduce((sum, entry) => sum + tileWeight(entry.tile), 0);
+    const weight = entries.reduce((sum, entry) => sum + TILE_FLOOR + clamp01(entry.tile.interest) ** 2, 0);
     return { genre, tiles: entries, weight };
   }).filter((block) => block.tiles.length > 0);
+  if (blocks.length < 2) return blocks;
+  const floor = median(blocks.map((block) => block.weight)) * BLOCK_FLOOR_OF_MEDIAN;
+  return blocks.map((block) => ({ ...block, weight: Math.max(block.weight, floor) }));
 }
 
 /** 1 ブロックあたりの目安の面積 (px²)。 ジャンル名と注目ワード 2〜3 つが読める広さ。 */
