@@ -1,14 +1,12 @@
-// 🤖 AI タブ > 📈 トレンド。
-// いろいろなジャンルのランキング・人気一覧を定期巡回して、 ジャンル別に並べる。
-// 前回巡回との順位の動き (新登場 / ↑ / ↓)、 複数ソースに出ている話題、 AI のジャンル別要約を表示する。
+// Tendentia のトレンド画面 (マップ / リスト / 設定)。
+// いろいろなジャンルのランキング・ニュースを定期巡回して、 ジャンル別に並べる。
+// 前回巡回との順位の動き (新登場 / ↑ / ↓)、 複数ソースに出ている話題、 ジャンルごとの注目 (決まったルールで選ぶ) を表示する。
 
+import { GENRE_LABELS, type TrendGenre } from './genres.js';
 import { escapeHtml } from './sanitize.js';
 import { loadTrendMap } from './trend-map-view.js';
 
-type TrendGenre =
-  | 'general' | 'youth' | 'news' | 'tech' | 'game' | 'anime' | 'music'
-  | 'app' | 'book' | 'entertainment' | 'life' | 'global';
-type SourceKind = 'rss' | 'apple_top' | 'wikipedia_top' | 'anilist_anime' | 'anilist_manga' | 'hn_top';
+type SourceKind = 'rss' | 'apple_top' | 'wikipedia_top' | 'anilist_anime' | 'anilist_manga' | 'hn_top' | 'narou_ranking';
 type MovementStatus = 'new' | 'up' | 'down' | 'same' | 'unknown';
 
 interface TrendSource {
@@ -26,7 +24,6 @@ interface TrendCrawlerConfig {
   intervalHours: number;
   itemsPerSource: number;
   retentionDays: number;
-  summarize: boolean;
   sources: TrendSource[];
 }
 
@@ -54,8 +51,16 @@ interface TrendSourceView {
 interface TrendGenreView {
   genre: TrendGenre;
   label: string;
-  summary: string | null;
+  highlights: TrendHighlight[];
   sources: TrendSourceView[];
+}
+
+interface TrendHighlight {
+  title: string;
+  url: string | null;
+  sourceName: string;
+  rank: number;
+  reasons: ('cross' | 'new' | 'up')[];
 }
 
 interface TrendCrossHit {
@@ -66,7 +71,6 @@ interface TrendCrossHit {
 
 interface TrendOverview {
   lastCrawledAt: string | null;
-  summary: { generatedAt: string; overall: string | null } | null;
   crossHits: TrendCrossHit[];
   genres: TrendGenreView[];
 }
@@ -75,23 +79,7 @@ interface TrendCrawlResult {
   crawledAt: string;
   ok: number;
   failed: { sourceId: string; error: string }[];
-  summaryError: string | null;
 }
-
-const GENRE_LABELS: Record<TrendGenre, string> = {
-  general: '総合 (検索・閲覧)',
-  youth: '若者 (Z世代)',
-  news: 'ニュース・社会',
-  tech: 'テック',
-  game: 'ゲーム',
-  anime: 'アニメ・マンガ',
-  music: '音楽',
-  app: 'アプリ',
-  book: '本',
-  entertainment: 'エンタメ',
-  life: '暮らし・知識',
-  global: '海外',
-};
 
 const KIND_LABELS: Record<SourceKind, string> = {
   rss: 'RSS / Atom',
@@ -100,6 +88,7 @@ const KIND_LABELS: Record<SourceKind, string> = {
   anilist_anime: 'AniList アニメ',
   anilist_manga: 'AniList マンガ',
   hn_top: 'Hacker News',
+  narou_ranking: '小説家になろう API',
 };
 
 /** 1 ソースのカードで最初に見せる件数 (残りは「もっと見る」)。 */
@@ -201,10 +190,23 @@ function sourceCard(source: TrendSourceView): string {
   </article>`;
 }
 
+const REASON_LABELS: Record<'cross' | 'new' | 'up', string> = { cross: '複数サイト', new: '新登場', up: '急上昇' };
+
+function highlightsBlock(highlights: TrendHighlight[]): string {
+  if (!highlights.length) return '';
+  return `<ul class="tc-highlights">${highlights.map((h) => {
+    const title = h.url
+      ? `<a href="${escapeHtml(h.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(h.title)}</a>`
+      : escapeHtml(h.title);
+    const reasons = h.reasons.map((r) => `<span class="tc-reason tc-reason-${r}">${REASON_LABELS[r]}</span>`).join('');
+    return `<li>${reasons}<span class="tc-highlight-title">${title}</span><span class="muted">${escapeHtml(h.sourceName)} ${h.rank}位</span></li>`;
+  }).join('')}</ul>`;
+}
+
 function genreSection(genre: TrendGenreView): string {
   return `<section class="tc-genre" data-genre="${genre.genre}">
     <h3>${escapeHtml(genre.label)}</h3>
-    ${genre.summary ? `<p class="tc-genre-summary">${escapeHtml(genre.summary)}</p>` : ''}
+    ${highlightsBlock(genre.highlights)}
     <div class="tc-source-grid">${genre.sources.map(sourceCard).join('')}</div>
   </section>`;
 }
@@ -237,12 +239,8 @@ function renderOverview(overview: TrendOverview): void {
   if (!overview.genres.some((genre) => genre.genre === selectedGenre)) selectedGenre = 'all';
   const genres = selectedGenre === 'all' ? overview.genres : overview.genres.filter((genre) => genre.genre === selectedGenre);
   const crawled = overview.lastCrawledAt ? `最終巡回 ${escapeHtml(fmtTime(overview.lastCrawledAt))}` : 'まだ巡回していません。「今すぐ巡回」を押すか、 次の自動巡回を待ってください。';
-  const overall = selectedGenre === 'all' && overview.summary?.overall
-    ? `<div class="tc-overall"><strong>いまの流れ</strong><p>${escapeHtml(overview.summary.overall)}</p><span class="muted">AI 要約 ${escapeHtml(fmtTime(overview.summary.generatedAt))}</span></div>`
-    : '';
   output.innerHTML = `<p class="tc-crawled muted">${crawled}</p>
     ${genreTabs(overview)}
-    ${overall}
     ${selectedGenre === 'all' ? crossHitsBlock(overview.crossHits) : ''}
     ${genres.map(genreSection).join('')}`;
   output.querySelectorAll<HTMLButtonElement>('.tc-genre-tabs [data-genre]').forEach((button) => {
@@ -270,14 +268,13 @@ function setStatus(text: string): void {
 function describeResult(result: TrendCrawlResult): string {
   const parts = [`${result.ok} ソースを取得`];
   if (result.failed.length) parts.push(`${result.failed.length} ソースは失敗`);
-  if (result.summaryError) parts.push(`AI 要約は失敗 (${result.summaryError})`);
   return parts.join(' · ');
 }
 
 async function refresh(sourceId?: string): Promise<void> {
   const button = document.getElementById('trendCrawlerRefresh') as HTMLButtonElement | null;
   if (button) { button.disabled = true; button.textContent = '巡回中…'; }
-  setStatus(sourceId ? 'このソースを取り直しています…' : '全ソースを巡回して AI でまとめています (1〜2 分かかることがあります)…');
+  setStatus(sourceId ? 'このソースを取り直しています…' : '全ソースを巡回しています (同じサイトへは間隔を空けるので 3〜5 分かかります)…');
   try {
     const query = sourceId ? `?source=${encodeURIComponent(sourceId)}` : '';
     const response = await request<{ result: TrendCrawlResult; overview: TrendOverview }>(`/api/trend-crawler/refresh${query}`, { method: 'POST' });
@@ -364,7 +361,6 @@ function renderSources(): void {
 async function loadConfig(): Promise<void> {
   config = await request<TrendCrawlerConfig>('/api/trend-crawler/config');
   (document.getElementById('trendCrawlerEnabled') as HTMLInputElement).checked = config.enabled;
-  (document.getElementById('trendCrawlerSummarize') as HTMLInputElement).checked = config.summarize;
   (document.getElementById('trendCrawlerInterval') as HTMLInputElement).value = String(config.intervalHours);
   (document.getElementById('trendCrawlerItems') as HTMLInputElement).value = String(config.itemsPerSource);
   (document.getElementById('trendCrawlerRetention') as HTMLInputElement).value = String(config.retentionDays);
@@ -387,7 +383,6 @@ async function saveConfig(): Promise<void> {
     const next: TrendCrawlerConfig = {
       ...config,
       enabled: (document.getElementById('trendCrawlerEnabled') as HTMLInputElement).checked,
-      summarize: (document.getElementById('trendCrawlerSummarize') as HTMLInputElement).checked,
       intervalHours: numberField('trendCrawlerInterval', '巡回間隔', 1, 24),
       itemsPerSource: numberField('trendCrawlerItems', '1 ソースの件数', 1, 50),
       retentionDays: numberField('trendCrawlerRetention', '履歴の保持日数', 1, 365),
@@ -410,7 +405,7 @@ function initialize(): void {
   initialized = true;
   element.innerHTML = `<div class="tc-view foundation-form">
     <header class="tc-header">
-      <div><h2>📈 トレンド</h2><p>検索・ニュース・テック・ゲーム・アニメ・音楽・アプリ・本などのランキングを定期的に巡回し、 前回からの順位の動きと AI の要約をジャンル別に並べます。</p></div>
+      <div><h2>📈 トレンド</h2><p>ニュース・株価・IT・AI・ガジェット・ゲーム・アニメ・マンガ・小説・芸能・ファッション・食品・外食・ネットミームなど 24 ジャンルのランキングとニュースを 3 時間ごとに巡回し、 前回からの順位の動きと注目をジャンル別に並べます。</p></div>
       <div class="tc-header-actions"><button id="trendCrawlerRefresh" type="button">今すぐ巡回</button><span id="trendCrawlerStatus" class="muted"></span></div>
     </header>
     <nav class="tc-mode worklog-subtabs"><button type="button" class="wl-subtab" data-mode="map">🫧 マップ</button><button type="button" class="wl-subtab" data-mode="list">☰ リスト</button></nav>
@@ -420,7 +415,6 @@ function initialize(): void {
       <summary>巡回するソースの設定</summary>
       <div class="tc-settings-head">
         <label><span>自動で巡回</span><input id="trendCrawlerEnabled" type="checkbox"></label>
-        <label><span>AI で要約</span><input id="trendCrawlerSummarize" type="checkbox"></label>
         <label><span>巡回間隔 (時間)</span><input id="trendCrawlerInterval" type="number" min="1" max="24"></label>
         <label><span>1 ソースの件数</span><input id="trendCrawlerItems" type="number" min="1" max="50"></label>
         <label><span>履歴の保持日数</span><input id="trendCrawlerRetention" type="number" min="1" max="365"></label>

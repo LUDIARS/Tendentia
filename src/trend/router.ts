@@ -4,7 +4,6 @@ import { isSameMachineRequest } from '../runtime/local-request.js';
 import {
   findTrendSource,
   getTrendCrawlerConfig,
-  getTrendSummary,
   setTrendCrawlerConfig,
   trendCrawlerConfigSchema,
 } from './config.js';
@@ -29,7 +28,7 @@ export interface TrendCrawlerRouterDeps {
 export function makeTrendCrawlerRouter(deps: TrendCrawlerRouterDeps): Hono {
   const router = new Hono();
   const crawl = deps.crawl ?? ((db: Db, onlySourceId?: string) => crawlTrends(db, new Date(), {}, onlySourceId));
-  const overview = deps.overview ?? ((db: Db) => buildTrendOverview(db, getTrendCrawlerConfig(db), getTrendSummary(db)));
+  const overview = deps.overview ?? ((db: Db) => buildTrendOverview(db, getTrendCrawlerConfig(db)));
   const coordinator = deps.coordinator ?? trendCrawlCoordinator;
   const map = deps.map ?? ((db: Db) => buildTrendMap(overview(db), getInterestPrefs(db), clickStats(db)));
 

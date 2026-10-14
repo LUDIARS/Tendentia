@@ -1,36 +1,33 @@
 {
   "name": "service-runtime",
-  "description": "Tendentia の常駐サービスの土台。環境変数からの起動設定、SQLite の用意、HTTP の入口 (health・API・画面の配信)、同一端末判定、SSRF ガード付きの公開取得、Claude Code CLI による AI 呼び出し、ビルドと画面の外枠を所有する。",
+  "description": "Tendentia の常駐サービスの土台。環境変数からの起動設定、SQLite の用意、HTTP の入口 (health・API・画面の配信)、同一端末判定、SSRF ガード付きの公開取得、ビルドと画面の外枠を所有する。LLM は使わない。",
   "role": "semantic",
   "presetRules": [],
   "templateRules": [],
   "membership": [
     {
-      "pathPattern": "(^|/)src/main.ts$"
+      "pathPattern": "(^|/)src/main\\.ts$"
     },
     {
-      "pathPattern": "(^|/)src/runtime/[^/]+.ts$"
+      "pathPattern": "(^|/)src/runtime/[^/]+\\.ts$"
     },
     {
-      "pathPattern": "(^|/)src/llm/[^/]+.ts$"
+      "pathPattern": "(^|/)src/shared/[^/]+\\.ts$"
     },
     {
-      "pathPattern": "(^|/)src/shared/[^/]+.ts$"
+      "pathPattern": "(^|/)scripts/build\\.mjs$"
     },
     {
-      "pathPattern": "(^|/)scripts/build.mjs$"
+      "pathPattern": "(^|/)web/src/main\\.ts$"
     },
     {
-      "pathPattern": "(^|/)web/src/main.ts$"
+      "pathPattern": "(^|/)web/src/sanitize\\.ts$"
     },
     {
-      "pathPattern": "(^|/)web/src/sanitize.ts$"
+      "pathPattern": "(^|/)web/index\\.html$"
     },
     {
-      "pathPattern": "(^|/)web/index.html$"
-    },
-    {
-      "pathPattern": "(^|/)web/style.css$"
+      "pathPattern": "(^|/)web/style\\.css$"
     },
     {
       "pathPattern": "(^|/)\\.gitignore$"
@@ -40,7 +37,6 @@
     "spec/feature/service-runtime.md#目的",
     "spec/feature/service-runtime.md#構成",
     "spec/feature/service-runtime.md#起動設定",
-    "spec/feature/service-runtime.md#AI 呼び出し",
     "spec/feature/service-runtime.md#制約"
   ]
 }

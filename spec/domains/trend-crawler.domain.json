@@ -1,28 +1,33 @@
 {
   "name": "trend-crawler",
-  "description": "トレンドクローラーとトレンドマップ。検索・若者・ニュース・テック・ゲーム・アニメ・音楽・アプリ・本などの公開ランキングを定期巡回して履歴に積み、前回比の順位の動き・複数サイト一致・AI のジャンル別要約と、興味で大きさと丸さが変わるマップを表示する。取得方式ごとの解析、履歴テーブル、動きの判定、興味のスコア、要約、スケジューラ、HTTP 境界、専用 UI を所有する。",
+  "description": "トレンドクローラーとトレンドマップ。ニュース・株価・IT・AI・ガジェット・ゲーム・アニメ・マンガ・小説・芸能・ファッション・食品・外食・ネットミームなど 24 ジャンルのランキングとニュースを定期巡回して履歴に積み、前回比の順位の動き・複数サイト一致・ジャンルごとの注目 (決まったルール、LLM 不使用) と、興味で大きさと丸さが変わるマップを表示する。取得方式ごとの解析、サイトごとの取得間隔、履歴テーブル、動きの判定、注目の選択、興味のスコア、スケジューラ、HTTP 境界、専用 UI を所有する。",
   "role": "semantic",
   "presetRules": [],
   "templateRules": [],
   "membership": [
     {
-      "pathPattern": "(^|/)src/trend/[^/]+.ts$"
+      "pathPattern": "(^|/)src/trend/[^/]+\\.ts$"
     },
     {
-      "pathPattern": "(^|/)src/trend/sources/[^/]+.ts$"
+      "pathPattern": "(^|/)src/trend/sources/[^/]+\\.ts$"
     },
     {
-      "pathPattern": "(^|/)web/src/trend-crawler-view.ts$"
+      "pathPattern": "(^|/)web/src/trend-crawler-view\\.ts$"
     },
     {
-      "pathPattern": "(^|/)web/src/trend-map-view.ts$"
+      "pathPattern": "(^|/)web/src/trend-map-view\\.ts$"
+    },
+    {
+      "pathPattern": "(^|/)web/src/genres\\.ts$"
     }
   ],
   "specRefs": [
     "spec/feature/trend-crawler.md#目的",
     "spec/feature/trend-crawler.md#構成",
+    "spec/feature/trend-crawler.md#ジャンル",
     "spec/feature/trend-crawler.md#ソース種類",
-    "spec/feature/trend-crawler.md#若者 (Z世代) ジャンル",
+    "spec/feature/trend-crawler.md#注目",
+    "spec/feature/trend-crawler.md#巡回の間隔",
     "spec/feature/trend-crawler.md#トレンドマップ",
     "spec/feature/trend-crawler.md#制約"
   ]

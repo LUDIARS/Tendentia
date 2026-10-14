@@ -2,59 +2,104 @@
 
 ## 目的
 
-検索・若者 (Z世代)・ニュース・テック・ゲーム・アニメ・音楽・アプリ・本・エンタメ・暮らし・海外の
-12 ジャンルについて、公開されているランキング・人気一覧を定期巡回して履歴に積み、
-Tendentia の画面 (トレンドマップ / リスト) にジャンル別で表示する。
+いろいろなジャンルについて、公開されているランキング・人気一覧と、ジャンルごとのニュースサイト (アンテナサイト)
+の RSS / API を定期巡回 (既定 3 時間ごと) して履歴に積み、Tendentia の画面 (トレンドマップ / リスト) に
+ジャンル別で表示する。
 
 前回の成功取得と比べた順位の動き (新登場 / ↑ / ↓ / →) と、保持期間内での初登場時刻、
-別サイト同士で同じ話題が出ているもの (複数のソースで話題) を出す。巡回ごとに LLM を
-1 回だけ呼び、ジャンル別の「いま何が流行っているか」を 2〜3 文でまとめる。
+別サイト同士で同じ話題が出ているもの (複数のソースで話題)、ジャンルごとの注目を出す。LLM は使わない。
 
 1 ソースの取得失敗は他を止めない。失敗したソースは前回成功分の一覧を表示したまま、
 最新巡回の失敗理由だけをカードに出す。
 
 ## 構成
 
-- `src/trend/types.ts`: ジャンル・取得方式・ソース・設定・一覧表示・要約の型。
-- `src/trend/default-sources.ts`: 既定ソース (API キー不要の公開一覧のみ) を追加した版ごとに持つ。
-- `src/trend/config.ts`: zod スキーマ、`app_settings` の `trend_crawler.config` / `trend_crawler.latest_summary`。
+- `src/trend/types.ts`: ジャンル・取得方式・ソース・設定・一覧表示・注目の型。
+- `src/trend/default-sources.ts`: 既定ソース (API キー不要の公開 RSS / API のみ) を追加した版ごとに持つ。
+- `src/trend/config.ts`: zod スキーマ、`app_settings` の `trend_crawler.config`。
 - `src/trend/schema.ts`: 履歴テーブル `trend_snapshots` / `trend_items` / `trend_clicks` (src/runtime/db.ts から呼ぶ)。
 - `src/trend/store.ts`: 履歴の記録・最新 2 回の成功取得・初登場時刻・保持期間外の削除 (SQL のみ)。
 - `src/trend/movement.ts`: 比較キー正規化、順位の動き、複数サイト一致の判定 (純関数)。
+- `src/trend/highlights.ts`: ジャンルごとの注目の選択 (純関数)。
+- `src/trend/host-pacer.ts`: 同じサイトへの取得間隔と、サイトが続かない巡回順。
 - `src/trend/overview.ts`: ソースごとの最新/前回比較をジャンル順に束ねた表示用一覧。
-- `src/trend/summarizer.ts`: 全ジャンルを 1 つの JSON で返させる AI 要約 (`src/llm/claude-cli.ts` で Claude Code CLI を 1 回呼ぶ)。
-- `src/trend/service.ts`: 巡回手順 (取得 → 記録 → 削除 → 要約)。
+- `src/trend/service.ts`: 巡回手順 (取得 → 記録 → 古い履歴と開いた記録の削除)。
 - `src/trend/coordinator.ts`: 手動巡回と定期巡回をプロセス内で 1 本に直列化。
 - `src/trend/scheduler.ts`: 前回巡回から `intervalHours` 経過で巡回。例外時は 30 分空ける。
 - `src/trend/router.ts`: 同一端末限定の HTTP API。
 - `src/trend/sources/*.ts`: 取得方式ごとの解析 (純関数) と HTTP 取得の振り分け。
-- `web/src/trend-crawler-view.ts`: ジャンルタブ、ソース別カード、手動巡回、ソース設定 UI。
+- `web/src/trend-crawler-view.ts`: ジャンルタブ、注目、ソース別カード、手動巡回、ソース設定 UI。
+- `web/src/genres.ts`: 画面のジャンル名と色相。
+
+## ジャンル
+
+24 ジャンル。並び順が表示順。
+
+| ジャンル | 主なソース |
+|---|---|
+| 総合 | Google トレンド (日本)、Wikipedia 日本語版の前日閲覧数、はてブ総合 |
+| 若者 (Z世代) | Google ニュース検索 (Z世代 / TikTok / 女子高生 / 若者言葉 / Gen Z)、Reddit r/GenZ |
+| ニュース・社会 | Yahoo!ニュース 主要、はてブ 世の中 / 政治と経済 |
+| 株価・マーケット | Yahoo!ニュース 経済、Google ニュース検索 (株価 急騰 / 日経平均 / 米国株、直近 1 日) |
+| IT | Yahoo!ニュース IT、ITmedia NEWS、はてブ テクノロジー、Zenn、Hacker News、Product Hunt |
+| AI | ITmedia AI+、Google ニュース検索 (生成AI / 英語圏の AI model) |
+| ガジェット | GIZMODO JAPAN、ITmedia Mobile、The Verge、Google ニュース検索 (ガジェット 新製品) |
+| ゲーム | 4Gamer.net、AUTOMATON、Game*Spark、はてブ アニメとゲーム、Reddit r/gaming |
+| アニメ | アニメ!アニメ!、AniList アニメ |
+| マンガ | コミックナタリー、AniList マンガ |
+| 小説 | 小説家になろう 日間 / 週間ランキング (公式 API)、Google ニュース検索 (ライトノベル) |
+| 本 | Apple Books 有料 |
+| 音楽 | 音楽ナタリー、Apple Music トップソング |
+| 芸能 | Yahoo!ニュース エンタメ、お笑いナタリー、Google ニュース検索 (芸能、直近 1 日) |
+| エンタメ | 映画ナタリー、はてブ エンタメ / おもしろ、Apple Podcasts |
+| ファッション | WWDJAPAN、ELLE Japan、Google ニュース検索 (ファッション トレンド) |
+| 飲料 | 食品産業新聞 飲料、Google ニュース検索 (新商品 飲料) |
+| レトルト・加工食品 | Google ニュース検索 (レトルト / 冷凍食品 / カップ麺 の新商品) |
+| 食品 | 食品産業新聞、Google ニュース検索 (新商品 食品) |
+| レストラン・外食 | ダイヤモンド・チェーンストアオンライン、Google ニュース検索 (飲食店 オープン / グルメ トレンド) |
+| ネットミーム | ねとらぼ、Know Your Meme、Google ニュース検索 (ネットミーム) |
+| アプリ | App Store 無料 / 有料、Google ニュース検索 (アプリ 話題) |
+| 暮らし・知識 | はてブ 暮らし / 学び |
+| 海外 | Google トレンド (米国)、Reddit r/popular、Wikipedia 英語版 |
+
+公開ランキングの無いジャンル (株価・飲料・加工食品・外食など) は、ジャンル別のニュースサイトの RSS と
+Google ニュースの検索結果 RSS から拾う。検索結果は関連度順なので、順位は話題の大きさではなく並び順として扱う。
+株価は「値上がり銘柄」などの公式に公開された配信が見つからなかったため、ニュースで代える。
+TikTok・Instagram・X の公式トレンドは API キーが要るため含めない。
 
 ## ソース種類
 
-| kind | 取得方法 | 指標 | 既定ソース |
-|---|---|---|---|
-| `rss` | RSS 1.0 (RDF) / 2.0 / Atom。並び順を順位とする | Google トレンド `ht:approx_traffic`、はてブ `hatena:bookmarkcount` | Google トレンド (JP/US)、はてブ各カテゴリ、Zenn、Product Hunt、Reddit、Google ニュース検索 |
-| `apple_top` | `rss.marketingtools.apple.com` のランキング JSON。URL で国・種類・件数を指定 | なし | Apple Music、App Store 無料/有料、Apple Books、Apple Podcasts |
-| `wikipedia_top` | Wikimedia `pageviews/top` の前日 (UTC) 分。未公開 (404) なら 1 日遡る | 閲覧数 | ja / en Wikipedia |
-| `anilist_anime` / `anilist_manga` | `graphql.anilist.co` へ POST、`TRENDING_DESC`、`isAdult: false` | trending 値 | AniList |
-| `hn_top` | Hacker News 公式 API `topstories` + 各 item | points / comments | Hacker News |
+| kind | 取得方法 | 指標 |
+|---|---|---|
+| `rss` | RSS 1.0 (RDF) / 2.0 / Atom。並び順を順位とする | Google トレンド `ht:approx_traffic`、はてブ `hatena:bookmarkcount` |
+| `apple_top` | `rss.marketingtools.apple.com` のランキング JSON。URL で国・種類・件数を指定 | なし |
+| `wikipedia_top` | Wikimedia `pageviews/top` の前日 (UTC) 分。未公開 (404) なら 1 日遡る | 閲覧数 |
+| `anilist_anime` / `anilist_manga` | `graphql.anilist.co` へ POST、`TRENDING_DESC`、`isAdult: false` | trending 値 |
+| `hn_top` | Hacker News 公式 API `topstories` + 各 item | points / comments |
+| `narou_ranking` | 小説家になろう公式 API (`api.syosetu.com/novelapi/api/`)。URL の `order` (dailypoint / weeklypoint / monthlypoint / hyoka) で並べる | 並び順に合ったポイント |
 
 メインページ・特別ページ・名前空間付きの Wikipedia 記事は話題ではないので除く。
 Google トレンドの item は link がフィード自身を指すため、最初の関連ニュースの URL を使う。
 
-## 若者 (Z世代) ジャンル
+## 注目
 
-TikTok・Instagram・X の公式トレンドは API キーが要るため、公開されている報道と掲示板から拾う。
+ジャンルごとに最大 3 件、決まったルールで選ぶ (LLM は使わない)。
 
-- Google ニュースの検索結果 RSS (直近 7 日、`when:7d`): 「Z世代 トレンド」「TikTok 流行」「女子高生 流行」「若者言葉」、英語圏の "Gen Z trend"。
-  検索結果は関連度順なので順位は話題の大きさではなく並び順として扱う。
-- Reddit r/GenZ の今日の上位。
+- 候補: 複数のサイトで話題 (cross)・新登場 (new)・前回から 3 位以上の上昇 (up)。
+- 並べ方: 理由の重み (cross 3 / new 2 / up 1) の合計が大きい順 → 順位の高い順。
+- 同じ話題が複数のソースに出ていたら 1 件にまとめ、重みが大きい方 (同じなら順位が高い方) を残す。
+
+## 巡回の間隔
+
+- 同じサイト (host) へは前回から 3 秒空けて取りに行く。Reddit は無認証の取得に厳しいので 15 秒。
+- 巡回の順番は、サイトごとの列から 1 件ずつ取り出して並べ直し、同じサイトが続かないようにする
+  (待ち時間を他のサイトの取得で埋める)。
 
 ## 既定ソースの追加
 
-既定ソースは追加した版 (`DEFAULT_TREND_SOURCE_RELEASES`) ごとに持つ。保存済み設定の `defaultsVersion` より
-新しい版のソースだけを読み込み時に足す。利用者が消した古い既定ソースは戻さず、同じ id があれば足さない。
+既定ソースは追加した版 (`DEFAULT_TREND_SOURCE_RELEASES`) ごとに持つ (版 1 = 初版、版 2 = 若者、版 3 = ジャンル拡充)。
+保存済み設定の `defaultsVersion` より新しい版のソースだけを読み込み時に足す。
+利用者が消した古い既定ソースは戻さず、同じ id があれば足さない。
 
 ## トレンドマップ
 
@@ -66,6 +111,7 @@ TikTok・Instagram・X の公式トレンドは API キーが要るため、公�
   - トレンドの強さ: ソース内順位、新登場、急上昇、複数サイト一致。
 - スコアは対数で 0〜1 に正規化して大きさを決める。ジャンルの興味が 0 でもスコアは 0 にしない。
 - 同じ話題が複数ソースに出ていても 1 枚にまとめる。1 ソースからは上位 8 件まで載せる。
+- 色はジャンルごとの色相 (`web/src/genres.ts`) を inline の `--tm-h` で渡す。
 - 構成: `interest.ts` (純関数のスコア) / `interest-store.ts` (設定と開いた記録) / `map.ts` (タイル組み立て) /
   `web/src/trend-map-view.ts` (描画・ジャンル別の興味・気になる言葉)。
 - 開いた記録とジャンルの興味は端末内の SQLite (`data/tendentia.db` の `trend_clicks`、`app_settings` の `trend_crawler.interest`) に閉じる。
@@ -83,11 +129,10 @@ TikTok・Instagram・X の公式トレンドは API キーが要るため、公�
 
 ## 制約
 
-- 個人データは扱わない。LLM へ送るのは公開ランキングの題名・補足・指標のみ。
+- 個人データは外へ送らない。LLM は使わない (2026-10-14 neco「LLM は使用しなくてよい」で AI 要約を廃止)。
 - 利用者が URL を変えられる GET 取得は `src/shared/public-fetch.ts` (SSRF ガード) を通す。
   AniList は固定の公式エンドポイントへの POST なので通常の fetch で 2MB / 20 秒まで。
 - 比較キーは NFKC・小文字化・空白と記号の除去で作る。1 文字のキーは別話題の偶然一致が多いので
   複数サイト一致に使わない。同じサイトのカテゴリ違い (はてブ総合と暮らし等) の重複は数えない。
-- 1 ソースだけの手動更新では AI 要約を作り直さない。要約が JSON として読めないときは前回の要約を残す。
 - 履歴は `retentionDays` (既定 30 日) より古い取得を巡回のたびに消す。
-- YouTube の急上昇・X のトレンドは API キーが必要なため既定ソースに含めない。
+- ソースは 150 件まで。

@@ -1,13 +1,11 @@
-// 🤖 AI タブ > 📈 トレンド > マップ表示。
+// トレンド画面 > マップ表示。
 // トレンド 1 つ 1 つを図形で並べる。 色 = ジャンル、 大きさと丸さ = 興味の度合い。
 // 興味が強いほど大きく丸く (上位は円)、 弱いほど小さな角丸の四角になるが、 最小の大きさで必ず残る。
 // 興味 = ジャンルごとの興味の強さ・気になる言葉 (自分で決める) × よく開くジャンル・話題 (開いた記録から学ぶ)。
 
+import { genreHue, type TrendGenre } from './genres.js';
 import { escapeHtml } from './sanitize.js';
 
-type TrendGenre =
-  | 'general' | 'youth' | 'news' | 'tech' | 'game' | 'anime' | 'music'
-  | 'app' | 'book' | 'entertainment' | 'life' | 'global';
 type MovementStatus = 'new' | 'up' | 'down' | 'same' | 'unknown';
 
 interface TrendInterestPrefs {
@@ -92,9 +90,9 @@ function tileHtml(tile: TrendMapTile, index: number): string {
   ].filter(Boolean).join('\n');
   const badge = tile.movement.status === 'new' ? '<span class="tm-badge">NEW</span>'
     : tile.movement.status === 'up' ? `<span class="tm-badge tm-badge-up">↑${tile.movement.delta}</span>` : '';
-  const style = `width:${g.width}px;height:${g.height}px;border-radius:${g.radius};font-size:${g.fontSize}px`;
+  const style = `--tm-h:${genreHue(tile.genre)};width:${g.width}px;height:${g.height}px;border-radius:${g.radius};font-size:${g.fontSize}px`;
   const inner = `${badge}<span class="tm-title">${escapeHtml(tile.title)}</span>`;
-  const attrs = `class="tm-tile tm-g-${tile.genre}" style="${style}" title="${escapeHtml(`${tile.title}\n${why}`)}" data-index="${index}"`;
+  const attrs = `class="tm-tile" style="${style}" title="${escapeHtml(`${tile.title}\n${why}`)}" data-index="${index}"`;
   return tile.url
     ? `<a ${attrs} href="${escapeHtml(tile.url)}" target="_blank" rel="noopener noreferrer">${inner}</a>`
     : `<div ${attrs}>${inner}</div>`;
@@ -107,7 +105,7 @@ function weightOptions(weight: number): string {
 
 function legendHtml(map: TrendMap): string {
   const chips = map.genres.map((genre) => `<div class="tm-legend-item">
-      <button type="button" class="tm-chip tm-g-${genre.genre}${selectedGenre === genre.genre ? ' active' : ''}" data-genre="${genre.genre}" title="このジャンルだけ表示">${escapeHtml(genre.label)} <span class="muted">${genre.count}</span></button>
+      <button type="button" class="tm-chip${selectedGenre === genre.genre ? ' active' : ''}" style="--tm-h:${genreHue(genre.genre)}" data-genre="${genre.genre}" title="このジャンルだけ表示">${escapeHtml(genre.label)} <span class="muted">${genre.count}</span></button>
       <select class="tm-weight" data-genre="${genre.genre}" aria-label="${escapeHtml(genre.label)} の興味">${weightOptions(genre.weight)}</select>
     </div>`).join('');
   return `<div class="tm-legend">

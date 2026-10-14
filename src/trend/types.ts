@@ -1,28 +1,44 @@
 // トレンドクローラー ドメインの型。
 //
 // このディレクトリ (src/trend/) は Tendentia のトレンド集積ドメイン。
-// 依存は better-sqlite3 (db ハンドル)・src/llm/ (AI 要約)・src/shared/ (公開取得)・src/runtime/local-request.ts のみ。
+// 依存は better-sqlite3 (db ハンドル)・src/shared/ (公開取得)・src/runtime/local-request.ts のみ。 LLM は使わない。
 
-/** トレンドのジャンル。 表示のまとまりと AI 要約の単位。 */
+/** トレンドのジャンル。 表示のまとまりと AI 要約の単位。 並び順がそのまま表示順。 */
 export type TrendGenre =
-  | 'general' | 'youth' | 'news' | 'tech' | 'game' | 'anime' | 'music'
-  | 'app' | 'book' | 'entertainment' | 'life' | 'global';
+  | 'general' | 'youth' | 'news' | 'stock' | 'tech' | 'ai'
+  | 'gadget' | 'game' | 'anime' | 'manga' | 'novel' | 'book'
+  | 'music' | 'celebrity' | 'entertainment' | 'fashion' | 'drink' | 'packaged_food'
+  | 'food' | 'restaurant' | 'meme' | 'app' | 'life' | 'global';
 
 export const TREND_GENRES: readonly TrendGenre[] = [
-  'general', 'youth', 'news', 'tech', 'game', 'anime', 'music', 'app', 'book', 'entertainment', 'life', 'global',
+  'general', 'youth', 'news', 'stock', 'tech', 'ai', 'gadget', 'game',
+  'anime', 'manga', 'novel', 'book', 'music', 'celebrity', 'entertainment', 'fashion',
+  'drink', 'packaged_food', 'food', 'restaurant', 'meme', 'app', 'life', 'global',
 ];
 
 export const GENRE_LABELS: Record<TrendGenre, string> = {
   general: '総合 (検索・閲覧)',
   youth: '若者 (Z世代)',
   news: 'ニュース・社会',
-  tech: 'テック',
+  stock: '株価・マーケット',
+  tech: 'IT',
+  ai: 'AI',
+  gadget: 'ガジェット',
   game: 'ゲーム',
-  anime: 'アニメ・マンガ',
-  music: '音楽',
-  app: 'アプリ',
+  anime: 'アニメ',
+  manga: 'マンガ',
+  novel: '小説',
   book: '本',
+  music: '音楽',
+  celebrity: '芸能',
   entertainment: 'エンタメ',
+  fashion: 'ファッション',
+  drink: '飲料',
+  packaged_food: 'レトルト・加工食品',
+  food: '食品',
+  restaurant: 'レストラン・外食',
+  meme: 'ネットミーム',
+  app: 'アプリ',
   life: '暮らし・知識',
   global: '海外',
 };
@@ -34,11 +50,12 @@ export const GENRE_LABELS: Record<TrendGenre, string> = {
  * - wikipedia_top: Wikimedia の前日閲覧数ランキング。 URL は対象 Wikipedia (例 https://ja.wikipedia.org)。
  * - anilist_anime / anilist_manga: AniList GraphQL の TRENDING 順。
  * - hn_top: Hacker News の topstories。
+ * - narou_ranking: 小説家になろうの公式 API (api.syosetu.com/novelapi)。 URL の order (dailypoint 等) で順位を決める。
  */
-export type TrendSourceKind = 'rss' | 'apple_top' | 'wikipedia_top' | 'anilist_anime' | 'anilist_manga' | 'hn_top';
+export type TrendSourceKind = 'rss' | 'apple_top' | 'wikipedia_top' | 'anilist_anime' | 'anilist_manga' | 'hn_top' | 'narou_ranking';
 
 export const TREND_SOURCE_KINDS: readonly TrendSourceKind[] = [
-  'rss', 'apple_top', 'wikipedia_top', 'anilist_anime', 'anilist_manga', 'hn_top',
+  'rss', 'apple_top', 'wikipedia_top', 'anilist_anime', 'anilist_manga', 'hn_top', 'narou_ranking',
 ];
 
 export interface TrendSource {
@@ -59,8 +76,6 @@ export interface TrendCrawlerConfig {
   itemsPerSource: number;
   /** 履歴の保持日数。 これより古い取得結果は巡回のたびに消す。 */
   retentionDays: number;
-  /** 巡回後に AI でジャンル別の要約を作るか。 */
-  summarize: boolean;
   sources: TrendSource[];
 }
 
@@ -105,7 +120,8 @@ export interface TrendSourceView {
 export interface TrendGenreView {
   genre: TrendGenre;
   label: string;
-  summary: string | null;
+  /** このジャンルの注目 (新登場・急上昇・複数サイト一致から決まったルールで選ぶ)。 */
+  highlights: TrendHighlight[];
   sources: TrendSourceView[];
 }
 
@@ -116,15 +132,18 @@ export interface TrendCrossHit {
   sources: { sourceId: string; name: string; genre: TrendGenre; rank: number }[];
 }
 
-export interface TrendSummary {
-  generatedAt: string;
-  overall: string | null;
-  genres: Partial<Record<TrendGenre, string>>;
+export type TrendHighlightReason = 'cross' | 'new' | 'up';
+
+export interface TrendHighlight {
+  title: string;
+  url: string | null;
+  sourceName: string;
+  rank: number;
+  reasons: TrendHighlightReason[];
 }
 
 export interface TrendOverview {
   lastCrawledAt: string | null;
-  summary: TrendSummary | null;
   crossHits: TrendCrossHit[];
   genres: TrendGenreView[];
 }
@@ -133,5 +152,4 @@ export interface TrendCrawlResult {
   crawledAt: string;
   ok: number;
   failed: { sourceId: string; error: string }[];
-  summaryError: string | null;
 }

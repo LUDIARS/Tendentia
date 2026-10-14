@@ -1,6 +1,7 @@
 // 画面と AI 要約に渡す一覧を組み立てる。 ソースごとに最新の成功取得と前回を比べ、 ジャンル順に束ねる。
 
 import type BetterSqlite3 from 'better-sqlite3';
+import { pickHighlights } from './highlights.js';
 import { findCrossHits, movementOf, rankMap } from './movement.js';
 import { firstSeenByKey, lastCrawledAt, latestAttempt, latestOkSnapshots } from './store.js';
 import {
@@ -11,7 +12,6 @@ import {
   type TrendOverview,
   type TrendSource,
   type TrendSourceView,
-  type TrendSummary,
 } from './types.js';
 
 type Db = BetterSqlite3.Database;
@@ -45,19 +45,18 @@ function siteOf(url: string): string {
   try { return new URL(url).hostname; } catch { return url; }
 }
 
-export function buildTrendOverview(db: Db, config: TrendCrawlerConfig, summary: TrendSummary | null): TrendOverview {
+export function buildTrendOverview(db: Db, config: TrendCrawlerConfig): TrendOverview {
   const enabled = config.sources.filter((source) => source.enabled);
   const views = new Map(enabled.map((source) => [source.id, buildSourceView(db, source)]));
-  const genres: TrendGenreView[] = TREND_GENRES
-    .map((genre) => ({
-      genre,
-      label: GENRE_LABELS[genre],
-      summary: summary?.genres[genre] ?? null,
-      sources: enabled.filter((source) => source.genre === genre).map((source) => views.get(source.id)!),
-    }))
-    .filter((genre) => genre.sources.length > 0);
   const crossHits = findCrossHits(enabled.map((source) => ({
     sourceId: source.id, site: siteOf(source.url), name: source.name, genre: source.genre, items: views.get(source.id)!.items,
   })));
-  return { lastCrawledAt: lastCrawledAt(db), summary, crossHits, genres };
+  const crossKeys = new Set(crossHits.map((hit) => hit.key));
+  const genres: TrendGenreView[] = TREND_GENRES
+    .map((genre) => {
+      const sources = enabled.filter((source) => source.genre === genre).map((source) => views.get(source.id)!);
+      return { genre, label: GENRE_LABELS[genre], highlights: pickHighlights(sources, crossKeys), sources };
+    })
+    .filter((genre) => genre.sources.length > 0);
+  return { lastCrawledAt: lastCrawledAt(db), crossHits, genres };
 }

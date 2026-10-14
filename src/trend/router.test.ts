@@ -18,8 +18,8 @@ function requestFrom(app: Hono, address: string, url: string, init?: RequestInit
   }));
 }
 
-const result: TrendCrawlResult = { crawledAt: '2026-10-14T00:00:00.000Z', ok: 1, failed: [], summaryError: null };
-const overview: TrendOverview = { lastCrawledAt: null, summary: null, crossHits: [], genres: [] };
+const result: TrendCrawlResult = { crawledAt: '2026-10-14T00:00:00.000Z', ok: 1, failed: [] };
+const overview: TrendOverview = { lastCrawledAt: null, crossHits: [], genres: [] };
 const postInit = { method: 'POST', headers: { Origin: 'http://localhost' } };
 
 test('trend-crawler API は同一端末のリクエストだけ通す', async () => {

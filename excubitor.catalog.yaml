@@ -3,7 +3,7 @@
 # ポート番号の正本はここだけ (コードには既定値を持たない)。起動・停止は Excubitor 経由で、
 # 本体 checkout (${ARS_ROOT}/Tendentia) からだけ行う。worktree からは起動しない。
 # 画面と API は同じ端末からだけ使う (127.0.0.1 で待ち受け、API は同一端末判定で守る)。
-# AI 要約は Claude Code CLI (`claude -p`) を使う。API キーは持たない。
+# LLM は使わない。
 services:
   - code: tendentia
     name: Tendentia (トレンドの集積とトレンドマップ)
@@ -38,5 +38,3 @@ services:
       TENDENTIA_PORT: "4450"
       # 巡回の履歴・興味の設定・開いた記録 (tendentia.db)。data/ は .gitignore 済み。
       TENDENTIA_DATA_DIR: ${ARS_ROOT}/Tendentia/data
-      # AI 要約のモデル (claude CLI のエイリアス)。
-      TENDENTIA_LLM_MODEL: haiku

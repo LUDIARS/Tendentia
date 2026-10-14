@@ -59,12 +59,11 @@ function item(rank: number, title: string): TrendItemView {
 
 const overview: TrendOverview = {
   lastCrawledAt: '2026-10-14T00:00:00.000Z',
-  summary: null,
   crossHits: [{ key: trendKey('共通'), title: '共通', sources: [] }],
   genres: [
-    { genre: 'tech', label: 'テック', summary: null, sources: [{ sourceId: 'hn', name: 'HN', kind: 'hn_top', url: 'https://news.ycombinator.com', fetchedAt: null, error: null,
+    { genre: 'tech', label: 'テック', highlights: [], sources: [{ sourceId: 'hn', name: 'HN', kind: 'hn_top', url: 'https://news.ycombinator.com', fetchedAt: null, error: null,
       items: [item(1, 'AI 新モデル'), item(2, '共通'), item(3, 'Rust')] }] },
-    { genre: 'youth', label: '若者', summary: null, sources: [{ sourceId: 'gn', name: 'GN', kind: 'rss', url: 'https://news.google.com', fetchedAt: null, error: null,
+    { genre: 'youth', label: '若者', highlights: [], sources: [{ sourceId: 'gn', name: 'GN', kind: 'rss', url: 'https://news.google.com', fetchedAt: null, error: null,
       items: [item(1, '共通'), item(2, 'メロい')] }] },
   ],
 };

@@ -4,12 +4,12 @@
 import type BetterSqlite3 from 'better-sqlite3';
 import { z } from 'zod';
 import { DEFAULT_TREND_SOURCE_RELEASES, DEFAULT_TREND_SOURCES } from './default-sources.js';
-import { TREND_GENRES, TREND_SOURCE_KINDS, type TrendCrawlerConfig, type TrendSource, type TrendSummary } from './types.js';
+import { TREND_GENRES, TREND_SOURCE_KINDS, type TrendCrawlerConfig, type TrendSource } from './types.js';
 
 type Db = BetterSqlite3.Database;
 
 const CURRENT_DEFAULTS_VERSION = Math.max(...DEFAULT_TREND_SOURCE_RELEASES.map((release) => release.version));
-const MAX_SOURCES = 60;
+const MAX_SOURCES = 150;
 export const MAX_ITEMS_PER_SOURCE = 50;
 
 const httpUrlSchema = z.string().url().refine((value) => {
@@ -29,7 +29,10 @@ export const trendSourceSchema = z.object({
   if (source.kind === 'apple_top' && host !== 'rss.marketingtools.apple.com' && host !== 'rss.applemarketingtools.com') {
     ctx.addIssue({ code: 'custom', path: ['url'], message: 'Apple のランキング URL (rss.marketingtools.apple.com) が必要です' });
   }
-  if (source.kind === 'wikipedia_top' && !/^[a-z-]+\.wikipedia\.org$/.test(host)) {
+  if (source.kind === 'narou_ranking' && host !== 'api.syosetu.com') {
+    ctx.addIssue({ code: 'custom', path: ['url'], message: '小説家になろう API (api.syosetu.com/novelapi/api/) の URL が必要です' });
+  }
+  if (source.kind === 'wikipedia_top' &&!/^[a-z-]+\.wikipedia\.org$/.test(host)) {
     ctx.addIssue({ code: 'custom', path: ['url'], message: 'https://<言語>.wikipedia.org 形式の URL が必要です' });
   }
 }) as unknown as z.ZodType<TrendSource>;
@@ -40,7 +43,6 @@ export const trendCrawlerConfigSchema = z.object({
   intervalHours: z.number().int().min(1).max(24),
   itemsPerSource: z.number().int().min(1).max(MAX_ITEMS_PER_SOURCE),
   retentionDays: z.number().int().min(1).max(365),
-  summarize: z.boolean(),
   sources: z.array(trendSourceSchema).max(MAX_SOURCES),
 }).superRefine((config, ctx) => {
   const ids = new Set<string>();
@@ -50,24 +52,16 @@ export const trendCrawlerConfigSchema = z.object({
   });
 });
 
-const trendSummarySchema = z.object({
-  generatedAt: z.string(),
-  overall: z.string().max(2_000).nullable(),
-  genres: z.record(z.string(), z.string().max(2_000)),
-});
-
 export const DEFAULT_TREND_CRAWLER_CONFIG: TrendCrawlerConfig = {
   defaultsVersion: CURRENT_DEFAULTS_VERSION,
   enabled: true,
   intervalHours: 3,
   itemsPerSource: 20,
   retentionDays: 30,
-  summarize: true,
   sources: DEFAULT_TREND_SOURCES,
 };
 
 const CONFIG_KEY = 'trend_crawler.config';
-const SUMMARY_KEY = 'trend_crawler.latest_summary';
 
 function readSetting(db: Db, key: string): string | null {
   const row = db.prepare('SELECT value FROM app_settings WHERE key = ?').get(key) as { value: string | null } | undefined;
@@ -110,21 +104,6 @@ export function setTrendCrawlerConfig(db: Db, config: TrendCrawlerConfig): Trend
   const next: TrendCrawlerConfig = { ...config, defaultsVersion: CURRENT_DEFAULTS_VERSION };
   writeSetting(db, CONFIG_KEY, JSON.stringify(next));
   return next;
-}
-
-export function getTrendSummary(db: Db): TrendSummary | null {
-  const raw = readSetting(db, SUMMARY_KEY);
-  if (raw === null) return null;
-  try {
-    const parsed = trendSummarySchema.safeParse(JSON.parse(raw));
-    return parsed.success ? parsed.data as TrendSummary : null;
-  } catch {
-    return null;
-  }
-}
-
-export function setTrendSummary(db: Db, summary: TrendSummary): void {
-  writeSetting(db, SUMMARY_KEY, JSON.stringify(summary));
 }
 
 export function findTrendSource(config: TrendCrawlerConfig, id: string): TrendSource | null {

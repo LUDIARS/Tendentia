@@ -6,13 +6,13 @@
   "templateRules": [],
   "membership": [
     {
-      "pathPattern": "(^|/)scripts/site/[^/]+.mjs$"
+      "pathPattern": "(^|/)scripts/site/[^/]+\\.mjs$"
     },
     {
-      "pathPattern": "(^|/)scripts/migrate-from-memoria.mjs$"
+      "pathPattern": "(^|/)scripts/migrate-from-memoria\\.mjs$"
     },
     {
-      "pathPattern": "(^|/)excubitor.bootstrap.json$"
+      "pathPattern": "(^|/)excubitor\\.bootstrap\\.json$"
     }
   ],
   "specRefs": [

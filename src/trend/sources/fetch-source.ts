@@ -8,10 +8,11 @@ import type { RawTrendItem, TrendSource } from '../types.js';
 import { ANILIST_ENDPOINT, anilistQuery, parseAnilistTrending } from './anilist-source.js';
 import { parseAppleTop } from './apple-source.js';
 import { HN_API, parseHnTopIds, toHnItems } from './hackernews-source.js';
+import { narouOrder, narouRequestUrl, parseNarouRanking } from './narou-source.js';
 import { parseTrendFeed } from './rss-source.js';
 import { parseWikipediaTop, wikipediaTopUrl } from './wikipedia-source.js';
 
-const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) MemoriaTrendCrawler/1.0';
+const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) TendentiaTrendCrawler/1.0';
 const JSON_ACCEPT = 'application/json, */*;q=0.5';
 const FEED_ACCEPT = 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*;q=0.5';
 const POST_TIMEOUT_MS = 20_000;
@@ -76,5 +77,6 @@ export async function fetchTrendSource(source: TrendSource, limit: number, deps:
     case 'anilist_anime': return parseAnilistTrending(await post(ANILIST_ENDPOINT, anilistQuery('ANIME', limit)), limit);
     case 'anilist_manga': return parseAnilistTrending(await post(ANILIST_ENDPOINT, anilistQuery('MANGA', limit)), limit);
     case 'hn_top': return fetchHackerNews(limit, get);
+    case 'narou_ranking': return parseNarouRanking(await get(narouRequestUrl(source.url, limit), JSON_ACCEPT), limit, narouOrder(source.url));
   }
 }

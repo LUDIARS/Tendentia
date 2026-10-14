@@ -85,11 +85,7 @@ button:disabled { opacity: 0.6; cursor: default; }
 .tc-header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .tc-crawled, .tc-caution, .tc-source-meta { color: var(--muted, #667085); font-size: 12px; margin: 0; }
 .tc-genre-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
-.tc-overall { border-left: 4px solid var(--accent, #2563eb); background: var(--surface, #fff); border-radius: 8px; padding: 10px 14px; }
-.tc-overall p { margin: 4px 0; line-height: 1.6; }
-.tc-overall .muted { font-size: 11px; }
 .tc-genre { display: grid; gap: 10px; }
-.tc-genre-summary { margin: 0; font-size: 13px; line-height: 1.6; color: var(--fg); }
 .tc-source-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
 .tc-source { border: 1px solid var(--border, #d9dee8); border-radius: 12px; background: var(--surface, #fff); padding: 12px 14px; min-width: 0; }
 .tc-source-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
@@ -128,20 +124,8 @@ button:disabled { opacity: 0.6; cursor: default; }
 .tc-source-row .tc-source-remove { grid-column: -2 / -1; justify-self: end; }
 @media (max-width: 640px) { .tc-source-row { grid-template-columns: 1fr 1fr; } .tc-source-grid { grid-template-columns: 1fr; } }
 
-/* 📈 トレンド > 🫧 マップ (trend-map-view.ts)。 色 = ジャンル (--tm-h の色相)、 大きさと丸さは要素ごとの inline style。 */
+/* マップ表示 (trend-map-view.ts)。 色 = ジャンル (--tm-h の色相、 web/src/genres.ts から inline で渡す)、 大きさと丸さも inline style。 */
 .tc-mode { margin: 0; }
-.tm-g-news { --tm-h: 0; }
-.tm-g-anime { --tm-h: 28; }
-.tm-g-music { --tm-h: 50; }
-.tm-g-book { --tm-h: 82; }
-.tm-g-app { --tm-h: 125; }
-.tm-g-life { --tm-h: 160; }
-.tm-g-tech { --tm-h: 192; }
-.tm-g-general { --tm-h: 216; }
-.tm-g-game { --tm-h: 248; }
-.tm-g-global { --tm-h: 272; }
-.tm-g-youth { --tm-h: 302; }
-.tm-g-entertainment { --tm-h: 332; }
 .tm-view { display: grid; gap: 12px; }
 .tm-help { margin: 0; font-size: 12px; }
 .tm-legend { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
@@ -165,3 +149,13 @@ button:disabled { opacity: 0.6; cursor: default; }
   .tm-tile { background: hsl(var(--tm-h) 35% 24%); color: hsl(var(--tm-h) 60% 90%); border-color: hsl(var(--tm-h) 45% 50%); }
 }
 @media (max-width: 640px) { .tm-field { gap: 6px; } }
+
+/* ジャンルごとの注目 (リスト表示)。 */
+.tc-highlights { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 13px; }
+.tc-highlights li { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+.tc-highlight-title a { color: var(--fg); text-decoration: none; }
+.tc-highlight-title a:hover { text-decoration: underline; }
+.tc-reason { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 999px; color: #fff; }
+.tc-reason-cross { background: #7c3aed; }
+.tc-reason-new { background: #dc2626; }
+.tc-reason-up { background: #16a34a; }
