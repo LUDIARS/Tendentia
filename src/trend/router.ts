@@ -91,9 +91,13 @@ export function makeTrendCrawlerRouter(deps: TrendCrawlerRouterDeps): Hono {
     const user = userOf(context);
     if (!user) return execute(null);
     if (!deps.personal) throw new Error('Personal operation authority is required');
+    let executing = false;
     try {
-      return await deps.personal(context, user.userId, action, body, () => execute(user));
-    } catch {
+      return await deps.personal(context, user.userId, action, body, () => { executing = true; return execute(user); });
+    } catch (error) {
+      // Once execution starts, database/response failures have an unknown
+      // outcome. Preserve the endpoint failure; re-login is not a retry signal.
+      if (executing) throw error;
       // Hono handles route exceptions before an outer middleware catch can see
       // them, so translate authority failures at the personal-operation boundary.
       return context.json({ error: '本人の操作を確認できません。ログインをやり直してください' }, 503);

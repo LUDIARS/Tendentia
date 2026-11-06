@@ -54,12 +54,19 @@ export class SessionSigner {
     const entry = this.entries.get(value);
     if (!entry || this.read(value)?.userId !== userId) throw new Error('Session owner ended');
     const current = (): boolean => this.entries.get(value) === entry && this.read(value)?.userId === userId;
+    let executing = false;
     try {
       return await this.client.run(entry.grant, { action, resource, body }, {
         risk, authorizeResource: current,
-        execute: () => { if (!current()) throw new Error('Session owner ended'); return execute(); },
+        execute: () => { if (!current()) throw new Error('Session owner ended'); executing = true; return execute(); },
       });
-    } catch (error) { this.entries.delete(value); throw error; }
+    } catch (error) {
+      // Failed online authority ends ownership. A database/response failure
+      // after execution starts does not prove this bound identity was revoked.
+      // No operation is retried; its original failure remains observable.
+      if (!executing) this.entries.delete(value);
+      throw error;
+    }
   }
 }
 SessionSigner.prototype.read = contract(SessionSigner.prototype.read, { ...augurContract_2d442795, contractId: 'C-2', mode: 'observe', sample: 1, where: 'src/runtime/user-session.ts:22', rule: 'contract-wrap', id: '2d442795' }); /* augur-inject:contract-wrap:2d442795 */

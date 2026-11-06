@@ -43,6 +43,34 @@ test('revocation after permit preparation prevents database execution', async t 
   assert.equal((f.db.prepare('SELECT COUNT(*) AS n FROM user_clicks').get() as { n: number }).n, 0);
   assert.equal((f.db.prepare('SELECT COUNT(*) AS n FROM trend_clicks').get() as { n: number }).n, 0);
 });
+
+test('a failure after database execution is not an authorization503 or an automatic retry', async t => {
+  const f = fixture(t), cookie = await f.login('alice');
+  const run = f.signer.run.bind(f.signer);
+  t.mock.method(f.signer, 'run', async (...args: Parameters<SessionSigner['run']>) => {
+    await run(...args);
+    throw new Error('post-execution-failure-sentinel');
+  });
+  const response = await f.at('/api/trend-crawler/click', { method: 'POST', cookie,
+    body: '{"key":"x","genre":"tech","sourceId":"s"}' });
+  assert.equal(response.status, 500);
+  assert.doesNotMatch(await response.text(), /ログイン|post-execution-failure-sentinel/);
+  assert.equal((f.db.prepare('SELECT COUNT(*) AS n FROM user_clicks').get() as { n: number }).n, 1);
+  assert.equal(f.calls.filter(call => call.path.endsWith('/consume')).length, 1);
+});
+
+test('execution failure preserves the bound identity while surfacing the exact failure once', async t => {
+  const f = fixture(t), cookie = await f.login('alice'), opaque = cookie.split('=')[1];
+  f.db.exec('CREATE TABLE execution_probe (n INTEGER)');
+  const failure = new Error('database outcome unknown');
+  await assert.rejects(f.signer.run(opaque, 'alice', 'tendentia.personal.click', '/api/trend-crawler/click', 'important', '{}', () => {
+    f.db.prepare('INSERT INTO execution_probe(n) VALUES (1)').run();
+    throw failure;
+  }), error => error === failure);
+  assert.equal(f.signer.read(opaque)?.userId, 'alice');
+  assert.equal((f.db.prepare('SELECT COUNT(*) AS n FROM execution_probe').get() as { n: number }).n, 1);
+  assert.equal(f.calls.filter(call => call.path.endsWith('/consume')).length, 1);
+});
 test('a late check cannot revive logout; expiry cannot extend grant lifetime', async t => {
   const f = fixture(t), opaque = newSessionId();
   const grant = await f.client.login('alice', f.verifier, opaque);
