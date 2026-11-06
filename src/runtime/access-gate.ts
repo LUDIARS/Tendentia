@@ -14,6 +14,7 @@ import type { Context } from 'hono';
 import type { CfAccessVerifier } from './cf-access.ts';
 import { isSameMachineRequest } from './local-request.ts';
 import { readCookie, SESSION_COOKIE, type SessionSigner, type SessionUser } from './user-session.ts';
+import { personalOperation } from './personal-operation.ts';
 
 export interface PublicEntrance {
   /** 公開 URL の Origin (https://tendentia.example.com)。 */
@@ -88,12 +89,26 @@ export class AccessGate {
   }
 
   /** ログイン cookie の利用者 (署名と期限が正しいときだけ)。 */
-  user(context: Context): SessionUser | null {
-    return this.deps.session?.read(readCookie(context.req.header('cookie'), SESSION_COOKIE)) ?? null;
+  async user(context: Context): Promise<SessionUser | null> {
+    return await this.deps.session?.check(readCookie(context.req.header('cookie'), SESSION_COOKIE)) ?? null;
+  }
+
+  async personal<T>(context: Context, userId: string, action: string, body: string, execute: () => T): Promise<T> {
+    const cookie = readCookie(context.req.header('cookie'), SESSION_COOKIE);
+    if (!cookie || !this.deps.session) throw new Error('Local session required');
+    const operation = personalOperation(action, context.req.method, context.req.path);
+    return this.deps.session.run(cookie, userId, action, operation.resource, operation.risk, body, execute);
   }
 
   async decide(context: Context, scope: AccessScope = 'site'): Promise<AccessDecision> {
-    const user = this.user(context);
+    const personalRead = READ_METHODS.has(context.req.method.toUpperCase()) &&
+      ['/api/trend-crawler/access', '/api/trend-crawler/map', '/api/trend-crawler/interest', '/api/trend-crawler/tendency'].includes(context.req.path);
+    const needsUser = scope === 'personal' || personalRead;
+    // Public assets stay accessible for reauthentication; logout must end ownership before any remote check.
+    const user = needsUser ? await this.user(context) : null;
+    if (needsUser && this.deps.session && readCookie(context.req.header('cookie'), SESSION_COOKIE) && !user) {
+      return { ok: false, status: 403, reason: 'ログインをやり直してください' };
+    }
     const withUser = (decision: AccessDecision): AccessDecision => (decision.ok && user ? { ...decision, user } : decision);
     const reading = READ_METHODS.has(context.req.method.toUpperCase());
     if (!reading && scope !== 'site') return withUser(this.decidePersonalWrite(context, scope, user));
@@ -105,6 +120,13 @@ export class AccessGate {
 
   /** 本人の好みとログインの書き込み。 同じ端末 (viewer を除く) か、 公開 URL からの同じサイトの要求だけを通す。 */
   private decidePersonalWrite(context: Context, scope: AccessScope, user: SessionUser | null): AccessDecision {
+    if (this.deps.readOnly || scope === 'session' || user) {
+      if (!matchesHost(context.req.header('host'), this.deps.entrance.hosts) ||
+        !this.deps.entrance.origin || context.req.header('origin') !== this.deps.entrance.origin ||
+        context.req.header('content-type')?.split(';')[0].trim() !== 'application/json') {
+        return { ok: false, status: 403, reason: '同じサイトの JSON 要求だけを受け付けます' };
+      }
+    }
     const sameMachine = this.deps.sameMachine ?? isSameMachineRequest;
     if (sameMachine(context)) {
       if (!this.deps.readOnly) return { ok: true, via: 'local', canEdit: true };

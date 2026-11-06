@@ -27,6 +27,9 @@
       "pathPattern": "(^|/)web/src/account-view\\.ts$"
     },
     {
+      "pathPattern": "(^|/)web/test/account-view\\.test\\.ts$"
+    },
+    {
       "pathPattern": "(^|/)web/index\\.html$"
     },
     {
@@ -34,6 +37,9 @@
     },
     {
       "pathPattern": "(^|/)\\.gitignore$"
+    },
+    {
+      "pathPattern": "(^|/)(contracts/|vendor/cernere-composite/|scripts/vendor-composite(?:\\.test)?\\.mjs$|augur\\.(contracts|inject)\\.json$|\\.gitattributes$)"
     }
   ],
   "specRefs": [
@@ -44,6 +50,8 @@
     "spec/feature/service-runtime.md#制約",
     "spec/feature/personal-login.md#ログインの流れ",
     "spec/feature/personal-login.md#入口の判定",
-    "spec/feature/personal-login.md#設定"
+    "spec/feature/personal-login.md#設定",
+    "spec/feature/personal-login.md#SPEC-TD-SCOPED-SESSION",
+    "spec/plan/2026-11-06-viewer-scoped-session.md"
   ]
 }

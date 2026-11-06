@@ -21,5 +21,5 @@ LUDIARS 短縮コード: **Td**。トレンドの集積とトレンドマップ�
 - 新しいファイルは `spec/domains/*.domain.json` のどれかの `membership` に入れる (pathPattern は `(^|/)` で書く)。
 - 役割は 2 つ: 本社の collector (`tendentia`、巡回・変更) と AWS の viewer (`tendentia-viewer`、写しを見せるだけ)。
   写しは `src/trend/replica/`。開いた記録 (`trend_clicks`) は写さない (本社に閉じる)。
-- viewer は Cernere でログインした人だけ、その人の好み (`user_interest` / `user_clicks`) を書ける。ログイン cookie の
-  署名鍵は data dir の `session.key`。人ごとの記録は本人以外に見せず、写しにも入れない (`spec/feature/personal-login.md`)。
+- viewer は Cernere の scoped grant に束縛した opaque session を使う。個人操作は SDK のオンライン許可と
+  DB 実行直前の本人所有権を必須にする。人ごとの記録は本人以外に見せず、写しにも入れない (`spec/feature/personal-login.md`)。

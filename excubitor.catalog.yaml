@@ -88,7 +88,14 @@ services:
       # 写しを取りに行く本社の Tendentia (collector の公開 URL)。
       TENDENTIA_UPSTREAM_URL: *tendentia_hq_url
       # Cernere でのログイン (画面が popup で開く公開 URL)。サーバからの接続先 CERNERE_URL は Cernere の provides から届く。
-      # Cernere 側は composite の許可 Origin に https://tendentia.ai-run-do.com を持つ (Cernere migration 064 / catalog)。
+      # Cr 管理者設定の hub_url/composite_origins/service_operations/consent と一斉切替する。
       TENDENTIA_CERNERE_PUBLIC_URL: https://cr${DOMAIN_ROOT}
       # 写しの置き場所。同じ checkout で collector と並んでもぶつからないよう data-viewer/ に分ける (.gitignore 済み)。
       TENDENTIA_DATA_DIR: ${ARS_ROOT}/Tendentia/data-viewer
+    required_env: [CERNERE_URL]
+    requires_secret:
+      - service: cernere
+        keys: [EXCUBITOR_CERNERE_CLIENT_ID, EXCUBITOR_CERNERE_CLIENT_SECRET]
+    # 標準 Ex 注入: issuer credential は子へ渡さず、起動単位の project credential を使う。
+    cernere_launch_credentials:
+      target_project: tendentia

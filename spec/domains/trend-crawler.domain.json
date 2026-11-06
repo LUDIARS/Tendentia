@@ -33,7 +33,7 @@
       "pathPattern": "(^|/)web/src/map-presets\\.ts$"
     },
     {
-      "pathPattern": "(^|/)web/test/[^/]+\\.ts$"
+      "pathPattern": "(^|/)web/test/(treemap-layout|map-presets)\\.test\\.ts$"
     },
     {
       "pathPattern": "(^|/)web/src/genres\\.ts$"

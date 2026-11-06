@@ -1,0 +1,14 @@
+{
+  "revision": "801756d1e354c486cbe0321acdc48909eed8afee",
+  "hashes": {
+    "composite.ts": "33266cee88655c4c3dbd4722cc9f25be9cb55ceb7cb36a8902f9ba313da2872b",
+    "service-session.ts": "6bd1ff81695e2ccbbc76eaf8f5a8fff8a15054c23d2990f7897c785e1291701c",
+    "service-identity.ts": "b9035df49abcfed9cd6ef53891e5bff415e903c750a96ba8254b568d0d2f167c",
+    "captured-operation.ts": "11afdcfded0b99accc90e49f6a9a2d5c09f18ba57082eeafa34b73ce096aaebf",
+    "upload-body.ts": "033c2e738b7f9e0710cff18cc2e122850aeba82ca5a482a37587a3f6e27a76af",
+    "upload.ts": "fdd23cff395fab786771f53a8a52289ae4d59986606d18472b2b790a896145da",
+    "delegation.ts": "5ed3c57f90b28ae3be8beb85f0ca3e87930020ad13bfe62b2d777d1f1a137991",
+    "types.ts": "44ca529d30f4d3e1c3f7ace5601b75610f6c6eb3b9a4c258630539d0eb9ed232",
+    "LICENSE": "66f59a74cffaf242f3b21c0f3926df8e4272f0f5da90c4b0b73c36073834b677"
+  }
+}

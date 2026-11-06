@@ -1,74 +1,69 @@
-// Tendentia のログイン cookie (td_session)。 Cernere で確かめた利用者を 30 日覚える。
-// 中身は「利用者 id・表示名・期限」を base64url にした JSON で、 data dir の session.key で HMAC-SHA256 署名する。
-// 鍵は初回起動時に乱数で作り (0600)、 data dir の外へは出さない。 鍵を消すと全員ログアウトになる。
-
-import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-
+// Process-owned opaque sessions. Restart logs everybody out; no bearer reaches the browser.
+import { createHash, randomBytes } from 'node:crypto';
+import type { BoundServiceSession, CernereClient } from './cernere-client.ts';
+import type { ServiceOperationRisk } from '../../vendor/cernere-composite/dist/service-session.js';
+import { contract } from '../../contracts/observe.ts'; /* augur-inject:import:36bcc27d */
+import augurContract_2d442795 from '../../contracts/session.contract.ts'; /* augur-inject:contract-predicate:bbb8155a */
 export const SESSION_COOKIE = 'td_session';
-export const SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
-const KEY_FILE = 'session.key';
-const KEY_BYTES = 32;
-
-export interface SessionUser {
-  userId: string;
-  displayName: string | null;
-}
-
-/** data dir の鍵を読む。 無ければ作る。 */
-export function loadSessionKey(dataDir: string): Buffer {
-  const path = join(dataDir, KEY_FILE);
-  if (existsSync(path)) {
-    const key = Buffer.from(readFileSync(path, 'utf8').trim(), 'base64');
-    if (key.length === KEY_BYTES) return key;
-    throw new Error(`${KEY_FILE} が壊れています (消すと全員ログアウトして作り直します)`);
-  }
-  const key = randomBytes(KEY_BYTES);
-  writeFileSync(path, key.toString('base64'), { mode: 0o600, flag: 'wx' });
-  return key;
-}
-
+export interface SessionUser { userId: string; displayName: string | null; expiresAt: number }
+interface OwnedSession { grant: BoundServiceSession; user: SessionUser }
+const MAX_SESSIONS = 10_000;
+/** @implements SPEC-TD-SCOPED-SESSION */
 export class SessionSigner {
-  private readonly key: Buffer;
+  private readonly entries = new Map<string, OwnedSession>();
+  private readonly client: CernereClient;
   private readonly clock: () => number;
-
-  constructor(key: Buffer, clock: () => number = Date.now) {
-    this.key = key;
-    this.clock = clock;
+  constructor(client: CernereClient, clock: () => number = Date.now) { this.client = client; this.clock = clock; }
+  private sweep(): void { for (const [key, value] of this.entries) if (value.user.expiresAt <= this.clock()) this.entries.delete(key); }
+  issue(grant: BoundServiceSession, opaque: string): string {
+    this.sweep();
+    const expiresAt = Date.parse(grant.expiresAt);
+    if (!/^[A-Za-z0-9_-]{43}$/.test(opaque) || this.entries.has(opaque) || this.entries.size >= MAX_SESSIONS ||
+      grant.sessionBinding !== createHash('sha256').update(opaque).digest('base64url') ||
+      grant.projectKey !== 'tendentia' || !grant.user.id || !Number.isFinite(expiresAt) || expiresAt <= this.clock() ||
+      expiresAt > this.clock() + 15 * 60_000) throw new Error('Invalid local session');
+    this.entries.set(opaque, { grant, user: { userId: grant.user.id, displayName: grant.user.displayName, expiresAt } });
+    return opaque;
   }
-
-  private sign(body: string): string {
-    return createHmac('sha256', this.key).update(body).digest('base64url');
-  }
-
-  issue(user: SessionUser): string {
-    const body = Buffer.from(JSON.stringify({
-      sub: user.userId, name: user.displayName, exp: Math.floor(this.clock() / 1000) + SESSION_TTL_SECONDS,
-    })).toString('base64url');
-    return `${body}.${this.sign(body)}`;
-  }
-
-  /** 署名と期限が正しければ利用者を返す。 改ざん・期限切れ・形の誤りは null (匿名として扱う)。 */
   read(value: string | undefined): SessionUser | null {
-    if (!value || value.length > 2_000) return null;
-    const [body, signature, extra] = value.split('.');
-    if (!body || !signature || extra !== undefined) return null;
-    const expected = Buffer.from(this.sign(body));
-    const given = Buffer.from(signature);
-    if (expected.length !== given.length || !timingSafeEqual(expected, given)) return null;
+    if (!value) return null;
+    const entry = this.entries.get(value);
+    if (!entry) return null;
+    if (entry.user.expiresAt <= this.clock()) { this.entries.delete(value); return null; }
+    return { ...entry.user };
+  }
+  async check(value: string | undefined): Promise<SessionUser | null> {
+    // Unknown attacker-supplied cookies are not owned sessions. Avoid invoking
+    // the observed read path (and its audit I/O) unless this process issued it.
+    if (!value || !this.entries.has(value) || !this.read(value)) return null;
+    const entry = this.entries.get(value)!;
     try {
-      const claims = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as { sub?: unknown; name?: unknown; exp?: unknown };
-      if (typeof claims.sub !== 'string' || !claims.sub || typeof claims.exp !== 'number') return null;
-      if (claims.exp * 1000 <= this.clock()) return null;
-      return { userId: claims.sub, displayName: typeof claims.name === 'string' ? claims.name : null };
-    } catch {
-      return null;
-    }
+      const checked = await this.client.check(entry.grant);
+      if (this.entries.get(value) !== entry || !this.read(value) || Date.parse(checked.expiresAt) > entry.user.expiresAt) throw new Error('Session owner ended');
+      entry.user.expiresAt = Math.min(entry.user.expiresAt, Date.parse(checked.expiresAt));
+      return this.read(value);
+    } catch { this.entries.delete(value); return null; }
+  }
+  async revoke(value: string | undefined): Promise<void> {
+    if (!value) return;
+    const entry = this.entries.get(value);
+    this.entries.delete(value); // End local ownership before remote I/O, even if revoke fails.
+    if (entry) await this.client.revoke(entry.grant);
+  }
+  async run<T>(value: string, userId: string, action: string, resource: string, risk: ServiceOperationRisk, body: string, execute: () => T): Promise<T> {
+    const entry = this.entries.get(value);
+    if (!entry || this.read(value)?.userId !== userId) throw new Error('Session owner ended');
+    const current = (): boolean => this.entries.get(value) === entry && this.read(value)?.userId === userId;
+    try {
+      return await this.client.run(entry.grant, { action, resource, body }, {
+        risk, authorizeResource: current,
+        execute: () => { if (!current()) throw new Error('Session owner ended'); return execute(); },
+      });
+    } catch (error) { this.entries.delete(value); throw error; }
   }
 }
-
-/** Cookie ヘッダから 1 つの値を取り出す。 */
+SessionSigner.prototype.read = contract(SessionSigner.prototype.read, { ...augurContract_2d442795, contractId: 'C-2', mode: 'observe', sample: 1, where: 'src/runtime/user-session.ts:22', rule: 'contract-wrap', id: '2d442795' }); /* augur-inject:contract-wrap:2d442795 */
+export function newSessionId(): string { return randomBytes(32).toString('base64url'); }
 export function readCookie(header: string | undefined, name: string): string | undefined {
   for (const part of (header ?? '').split(';')) {
     const index = part.indexOf('=');

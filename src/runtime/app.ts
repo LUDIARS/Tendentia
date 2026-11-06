@@ -32,7 +32,8 @@ export function makeApp(deps: AppDeps): Hono {
   app.get('/health', (context) => context.json({ ok: true, service: 'tendentia', version: deps.version }));
   const authorize: TrendAuthorize = (context, scope) => gate.decide(context, scope);
   app.route('/', makeLoginRouter({ gate, login: deps.login }));
-  app.route('/', makeTrendCrawlerRouter({ db: deps.db, authorize }));
+  app.route('/', makeTrendCrawlerRouter({ db: deps.db, authorize,
+    personal: (context, userId, action, body, execute) => gate.personal(context, userId, action, body, execute) }));
   if (deps.syncExport) app.route('/', makeSyncRouter({ db: deps.db, authorize }));
   const serveStatic = makeStaticHandler(deps.webDir);
   app.get('*', async (context) => {

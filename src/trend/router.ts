@@ -44,6 +44,8 @@ export interface TrendCrawlerRouterDeps {
   map?: (db: Db, userId: string | null) => TrendMap;
   coordinator?: TrendCrawlCoordinator;
   authorize?: TrendAuthorize;
+  /** Online authority and latest local owner check immediately around synchronous DB work. */
+  personal?: <T>(context: Context, userId: string, action: string, body: string, execute: () => T) => Promise<T>;
   /** データの版の決め方 (同じ版なら覚えた応答を返す)。 既定は DB への軽い問い合わせ (response-cache.ts)。 */
   versions?: TrendVersions;
 }
@@ -82,15 +84,27 @@ export function makeTrendCrawlerRouter(deps: TrendCrawlerRouterDeps): Hono {
   const map = deps.map ?? ((db: Db, userId: string | null) => (userId
     ? buildTrendMap(overview(db), getUserPrefs(db, userId), userClickStats(db, userId))
     : buildTrendMap(overview(db), getInterestPrefs(db), clickStats(db))));
-  const userOf = async (context: Context): Promise<TrendUser | null> => {
-    const decision = await authorize(context, scopeOf(context));
-    return decision.ok ? decision.user ?? null : null;
+  const users = new WeakMap<Context, TrendUser>();
+  const userOf = (context: Context): TrendUser | null => users.get(context) ?? null;
+  const personal = async (context: Context, action: string, body: string,
+    execute: (user: TrendUser | null) => Response): Promise<Response> => {
+    const user = userOf(context);
+    if (!user) return execute(null);
+    if (!deps.personal) throw new Error('Personal operation authority is required');
+    try {
+      return await deps.personal(context, user.userId, action, body, () => execute(user));
+    } catch {
+      // Hono handles route exceptions before an outer middleware catch can see
+      // them, so translate authority failures at the personal-operation boundary.
+      return context.json({ error: '本人の操作を確認できません。ログインをやり直してください' }, 503);
+    }
   };
 
   router.use('/api/trend-crawler/*', async (context, next) => {
     context.header('Cache-Control', 'no-store');
     const decision = await authorize(context, scopeOf(context));
     if (!decision.ok) return context.json({ error: decision.reason }, decision.status);
+    if (decision.user) users.set(context, decision.user);
     await next();
   });
 
@@ -98,16 +112,17 @@ export function makeTrendCrawlerRouter(deps: TrendCrawlerRouterDeps): Hono {
   // canPersonalize = 興味の設定と開いた記録 (同じ端末か、 ログインした人)。
   router.get('/api/trend-crawler/access', async (context: Context) => {
     const decision = await authorize(context);
-    const user = decision.ok ? decision.user ?? null : null;
+    if (!decision.ok) return context.json({ error: decision.reason }, decision.status);
+    const user = userOf(context);
     const canEdit = decision.ok && decision.canEdit;
-    return context.json({ canEdit, canPersonalize: canEdit || user !== null, user: user ? { displayName: user.displayName } : null });
+    return personal(context, 'tendentia.personal.access', '', () => context.json({ canEdit, canPersonalize: canEdit || user !== null, user: user ? { displayName: user.displayName } : null }));
   });
 
   // ログインした本人の好みの傾向。 本人の分だけを返す。
   router.get('/api/trend-crawler/tendency', async (context: Context) => {
-    const user = await userOf(context);
+    const user = userOf(context);
     if (!user) return context.json({ error: 'ログインすると自分の好みの傾向を見られます' }, 401);
-    return context.json({ tendency: userTendency(deps.db, user.userId) });
+    return personal(context, 'tendentia.personal.tendency', '', () => context.json({ tendency: userTendency(deps.db, user.userId) }));
   });
 
   router.get('/api/trend-crawler/config', (context: Context) => context.json(getTrendCrawlerConfig(deps.db)));
@@ -131,37 +146,39 @@ export function makeTrendCrawlerRouter(deps: TrendCrawlerRouterDeps): Hono {
   });
 
   router.get('/api/trend-crawler/map', async (context: Context) => {
-    const user = await userOf(context);
-    const userId = user?.userId ?? null;
-    const busy = coordinator.busy;
-    const version = `${versions.map(deps.db, userId)}|${busy}`;
-    return json(context, responses.get(`map:${userId ?? ''}`, version, () => JSON.stringify({ map: map(deps.db, userId), busy })));
+    return personal(context, 'tendentia.personal.map', '', (owner) => {
+      const userId = owner?.userId ?? null;
+      const busy = coordinator.busy;
+      const version = `${versions.map(deps.db, userId)}|${busy}`;
+      return json(context, responses.get(`map:${userId ?? ''}`, version, () => JSON.stringify({ map: map(deps.db, userId), busy })));
+    });
   });
 
   router.get('/api/trend-crawler/interest', async (context: Context) => {
-    const user = await userOf(context);
-    return context.json(user ? getUserPrefs(deps.db, user.userId) : getInterestPrefs(deps.db));
+    return personal(context, 'tendentia.personal.interest.read', '', (user) => context.json(user ? getUserPrefs(deps.db, user.userId) : getInterestPrefs(deps.db)));
   });
 
   // ログインした人はその人の設定を、 そうでなければ (同じ端末から) サイトの既定を書き換える。
   router.put('/api/trend-crawler/interest', async (context: Context) => {
-    const body = await context.req.json().catch(() => null);
+    const raw = await context.req.text();
+    let body: unknown; try { body = JSON.parse(raw); } catch { body = null; }
     const parsed = interestPrefsSchema.safeParse(body);
     if (!parsed.success) return context.json({ error: 'invalid interest prefs', issues: parsed.error.issues }, 400);
     const prefs = parsed.data as TrendInterestPrefs;
-    const user = await userOf(context);
-    return context.json(user ? setUserPrefs(deps.db, user.userId, prefs) : setInterestPrefs(deps.db, prefs));
+    return personal(context, 'tendentia.personal.interest.write', raw, (user) => context.json(user ? setUserPrefs(deps.db, user.userId, prefs) : setInterestPrefs(deps.db, prefs)));
   });
 
   router.post('/api/trend-crawler/click', async (context: Context) => {
-    const body = await context.req.json().catch(() => null);
+    const raw = await context.req.text();
+    let body: unknown; try { body = JSON.parse(raw); } catch { body = null; }
     const parsed = clickInputSchema.safeParse(body);
     if (!parsed.success) return context.json({ error: 'invalid click', issues: parsed.error.issues }, 400);
     const click = { ...parsed.data, genre: parsed.data.genre as TrendGenre };
-    const user = await userOf(context);
-    if (user) recordUserClick(deps.db, user.userId, click);
-    else recordClick(deps.db, click);
-    return context.json({ ok: true });
+    return personal(context, 'tendentia.personal.click', raw, (user) => {
+      if (user) recordUserClick(deps.db, user.userId, click);
+      else recordClick(deps.db, click);
+      return context.json({ ok: true });
+    });
   });
 
   router.post('/api/trend-crawler/refresh', async (context: Context) => {

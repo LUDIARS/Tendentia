@@ -1,0 +1,1 @@
+{"service":"tendentia-viewer","include":["src/runtime/cernere-client.ts","src/runtime/user-session.ts"],"rules":{"contract-wrap":true}}

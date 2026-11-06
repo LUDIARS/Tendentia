@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "contractsDir": "contracts",
+  "importFrom": "../../contracts/observe.ts",
+  "runtimeFile": "contracts/runtime.ts",
+  "contracts": [
+    {"id":"C-1","criterion":"C-1 CernereClient.login(code, verifier, opaque): project-bound exchange を一度だけ行い期限内の Td grant を bind する","symbol":"CernereClient.login","file":"src/runtime/cernere-client.ts","module":"contracts/login.contract.ts","mode":"observe","sample":1},
+    {"id":"C-2","criterion":"C-2 SessionSigner.read(cookie): opaque cookie の現行所有者だけを返し失効後は復活しない","symbol":"SessionSigner.read","file":"src/runtime/user-session.ts","module":"contracts/session.contract.ts","mode":"observe","sample":1}
+  ]
+}

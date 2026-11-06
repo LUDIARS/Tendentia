@@ -12,7 +12,7 @@ import { CernereClient } from './runtime/cernere-client.ts';
 import { readRuntimeConfig } from './runtime/config.ts';
 import { openDatabase } from './runtime/db.ts';
 import { readLoginConfig } from './runtime/login-router.ts';
-import { loadSessionKey, SessionSigner } from './runtime/user-session.ts';
+import { SessionSigner } from './runtime/user-session.ts';
 import { startReplicaPuller } from './trend/replica/puller.ts';
 import { startTrendCrawlerScheduler } from './trend/scheduler.ts';
 
@@ -27,10 +27,12 @@ const entrance = publicEntrance(process.env);
 const cfAccess = readCfAccessConfig(process.env);
 const viewer = config.role === 'viewer';
 // Cernere でのログイン: 公開 URL と Cernere の接続先が揃っているときだけ出す (spec/feature/personal-login.md)。
-const loginConfig = entrance.origin ? readLoginConfig(process.env) : null;
-const signer = new SessionSigner(loadSessionKey(config.dataDir));
-const login = loginConfig && entrance.origin
-  ? { config: loginConfig, client: new CernereClient(loginConfig.cernereUrl), signer, selfOrigin: entrance.origin }
+const loginConfig = viewer && entrance.origin ? readLoginConfig(process.env) : null;
+const client = loginConfig ? new CernereClient({ cernereUrl: loginConfig.cernereUrl, projectKey: 'tendentia',
+  clientId: loginConfig.clientId, clientSecret: loginConfig.clientSecret }) : undefined;
+const signer = client ? new SessionSigner(client) : undefined;
+const login = loginConfig && entrance.origin && client && signer
+  ? { config: loginConfig, client, signer, selfOrigin: entrance.origin }
   : undefined;
 const gate = new AccessGate({ entrance, verifier: cfAccess ? new CfAccessVerifier(cfAccess) : undefined, readOnly: viewer, session: signer });
 const app = makeApp({ db, webDir: config.webDir, version, gate, syncExport: !viewer, login });
@@ -44,6 +46,7 @@ if (viewer) startReplicaPuller(db, config.upstreamUrl!);
 else startTrendCrawlerScheduler(db);
 
 const shutdown = (): void => {
+  client?.dispose();
   try { db.close(); } catch { /* 既に閉じている */ }
   process.exit(0);
 };
